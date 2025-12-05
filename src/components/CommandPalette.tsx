@@ -137,29 +137,42 @@ export const CommandPalette = () => {
     const yPosition = 200;
     const xSpacing = 280;
 
+    console.log('Creating flow from steps:', steps);
+
     steps.forEach((step, index) => {
       const nodeId = createNodeId();
       nodeIds.push(nodeId);
+
+      const nodeData = {
+        config: step.config || {},
+        description: step.description,
+      };
+
+      console.log(`Creating node ${index + 1}:`, { 
+        id: nodeId, 
+        type: step.action, 
+        data: nodeData 
+      });
 
       newNodes.push({
         id: nodeId,
         type: step.action,
         position: { x: xPosition, y: yPosition },
-        data: {
-          config: step.config,
-          description: step.description,
-        },
+        data: nodeData,
       });
 
       xPosition += xSpacing;
     });
 
     // Create edges AFTER all nodes are defined
+    // Specify proper handles: source node's "output" handle -> target node's "token" handle
     for (let i = 1; i < nodeIds.length; i++) {
       newEdges.push({
         id: `edge-${nodeIds[i - 1]}-${nodeIds[i]}`,
         source: nodeIds[i - 1],
+        sourceHandle: 'output',
         target: nodeIds[i],
+        targetHandle: 'token',
         type: 'default',
         animated: true,
         style: { 
@@ -169,7 +182,7 @@ export const CommandPalette = () => {
       });
     }
 
-    // Add nodes and edges together - ReactFlow handles this properly
+    // Add nodes and edges together - edges with proper handles ensure proper connection
     setNodes((nds) => [...nds, ...newNodes]);
     setEdges((eds) => [...eds, ...newEdges]);
     
@@ -221,10 +234,10 @@ export const CommandPalette = () => {
         <VStack spacing="2rem" align="stretch">
           <Box textAlign="center">
             <Text fontSize="2.4rem" fontWeight="700" color="#FFFFFF" mb="0.8rem" letterSpacing="-0.5px">
-              ✨ AI Flow Generator
+              Describe the flow
             </Text>
             <Text fontSize="1.2rem" color="rgba(255, 255, 255, 0.75)" fontWeight="500">
-              Describe your workflow in plain English
+              
             </Text>
           </Box>
 
@@ -339,7 +352,7 @@ export const CommandPalette = () => {
                 color="#FFFFFF"
                 onClick={handleCreateFlow}
                 size="lg"
-                fontSize="1.2rem"
+                fontSize="1.4rem"
                 fontWeight="700"
                 h="4.5rem"
                 flex="1"
@@ -352,7 +365,7 @@ export const CommandPalette = () => {
                 }}
                 transition="all 0.2s"
               >
-                Create Flow 🚀
+                Create Flow
               </Button>
             ) : (
               <Button
@@ -375,7 +388,7 @@ export const CommandPalette = () => {
                 transition="all 0.2s"
                 isDisabled={!prompt.trim()}
               >
-                Generate ✨
+                Generate
               </Button>
             )}
           </Flex>

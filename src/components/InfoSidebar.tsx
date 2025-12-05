@@ -116,21 +116,33 @@ export const InfoSidebar = () => {
       const agent = createAgent(wallet, connection);
       const sortedNodes = [...connectedFlowNodes].sort((a, b) => a.position.x - b.position.x);
 
+      console.log('Executing flow with nodes:', sortedNodes.map(n => ({ id: n.id, type: n.type, config: n.data?.config })));
+
       for (const node of sortedNodes) {
         const nodeType = node.type as SendAIActionType;
         const tokens = gatherTokens(node.data || {});
         const config = node.data?.config || {};
         const label = getActionLabel(nodeType) || 'Action';
 
+        console.log(`Executing node ${node.id}:`, { nodeType, label, config, tokensCount: tokens.length });
+
         try {
           const res = await runSendAIAction(nodeType, tokens, config, agent);
+          console.log(`Node ${node.id} result:`, res);
           const signature = extractSignature(res);
           if (res?.status && res.status !== 'success') {
             throw new Error(res.message || `${label} returned an error`);
           }
           appendResult(node.id, label, 'success', `${label} executed`, signature);
         } catch (err: any) {
+          console.error(`Node ${node.id} error:`, err);
           appendResult(node.id, label, 'error', err.message || 'Failed to execute');
+          toast({
+            title: `${label} failed`,
+            description: err.message || 'Failed to execute',
+            status: 'error',
+            duration: 5000,
+          });
         }
       }
 
@@ -140,6 +152,7 @@ export const InfoSidebar = () => {
         status: 'success',
       });
     } catch (error: any) {
+      console.error('Flow execution error:', error);
       toast({
         title: 'Flow failed',
         description: error.message || 'Unable to run SendAI actions',

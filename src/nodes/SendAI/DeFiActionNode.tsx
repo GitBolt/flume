@@ -237,52 +237,65 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
 
   return (
     <>
-      <VStack spacing="8px" cursor="grab" userSelect="none" position="relative">
+      <Box position="relative">
         <CustomHandle
           pos="left"
           type="target"
           id="token"
-          style={{ position: 'absolute', left: '-8px', top: '50%', transform: 'translateY(-50%)' }}
+          style={{ 
+            left: '-4px',
+            top: '49px'
+          }}
+        />
+        <CustomHandle
+          pos="right"
+          type="source"
+          id="output"
+          style={{ 
+            right: '-4px',
+            top: '49px'
+          }}
         />
         
-        <Flex
-          w="90px"
-          h="90px"
-          borderRadius="20px"
-          bg="linear-gradient(135deg, #A1A2FF 0%, #7172E8 100%)"
-          align="center"
-          justify="center"
-          position="relative"
-          boxShadow="0px 8px 32px rgba(0, 0, 0, 0.25), inset 0px 1px 0px rgba(255, 255, 255, 0.1)"
-          border="0.5px solid rgba(255, 255, 255, 0.18)"
-          transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-          _hover={{
-            transform: 'scale(1.08) translateY(-2px)',
-            boxShadow: '0px 12px 40px rgba(161, 162, 255, 0.4)',
-          }}
-          onClick={onOpen}
-          cursor={loading ? 'wait' : 'pointer'}
-          opacity={loading ? 0.7 : 1}
-        >
-          {loading ? (
-            <Spinner size="lg" color="white" />
-          ) : (
-            <Text fontSize="3.5rem">{emoji}</Text>
-          )}
-          
-          {!!tokens.length && (
-            <Box
-              position="absolute"
-              top="4px"
-              right="4px"
-              w="18px"
-              h="18px"
-              borderRadius="full"
-              bg="green.400"
-              boxShadow="0 0 10px green"
-            />
-          )}
-        </Flex>
+        <VStack spacing="8px" cursor="grab" userSelect="none">
+          <Flex
+            w="90px"
+            h="90px"
+            borderRadius="20px"
+            bg="linear-gradient(135deg, #A1A2FF 0%, #7172E8 100%)"
+            align="center"
+            justify="center"
+            position="relative"
+            boxShadow="0px 8px 32px rgba(0, 0, 0, 0.25), inset 0px 1px 0px rgba(255, 255, 255, 0.1)"
+            border="0.5px solid rgba(255, 255, 255, 0.18)"
+            transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+            _hover={{
+              transform: 'scale(1.08) translateY(-2px)',
+              boxShadow: '0px 12px 40px rgba(161, 162, 255, 0.4)',
+            }}
+            onClick={onOpen}
+            cursor={loading ? 'wait' : 'pointer'}
+            opacity={loading ? 0.7 : 1}
+          >
+            {loading ? (
+              <Spinner size="lg" color="white" />
+            ) : (
+              <Text fontSize="3.5rem">{emoji}</Text>
+            )}
+            
+            {!!tokens.length && (
+              <Box
+                position="absolute"
+                top="4px"
+                right="4px"
+                w="18px"
+                h="18px"
+                borderRadius="full"
+                bg="green.400"
+                boxShadow="0 0 10px green"
+              />
+            )}
+          </Flex>
 
         <VStack spacing="4px" w="140px">
           <Text
@@ -321,6 +334,7 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
           )}
         </VStack>
       </VStack>
+      </Box>
 
       <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
         <ModalOverlay />

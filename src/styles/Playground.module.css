@@ -1,6 +1,7 @@
 .controls {
   border-radius: 1rem;
-  margin-right: 23rem;
+  right: 42rem !important;
+  left: auto !important;
 }
 
 .controls > :first-child {
@@ -20,7 +21,7 @@
 }
 
 .controls > button:hover {
-  background-color: #FF0099;
+  background-color: #A1A2FF;
 }
 
 .controls > button > svg > path {
@@ -30,6 +31,7 @@
 .minimap {
   background-color: #08080a80;
   border-radius: 1rem;
+  margin-right: 22rem !important;
 }
 
 .minimap > svg {

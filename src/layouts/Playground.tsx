@@ -132,8 +132,8 @@ const Playground = function Playground({
     >
       <Controls className={styles.controls} position="bottom-right" />
       <MiniMap
-        nodeColor="#FF00994d"
-        nodeStrokeColor="#FF0099"
+        nodeColor="#A1A2FF"
+        nodeStrokeColor="#A1A2FF"
         maskColor='#3e3a6d4d'
         className={styles.minimap}
         zoomable
