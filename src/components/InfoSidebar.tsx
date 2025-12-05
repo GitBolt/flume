@@ -173,7 +173,7 @@ export const InfoSidebar = () => {
       bg="rgba(30, 30, 46, 0.95)"
       borderLeft="1px solid rgba(161, 162, 255, 0.2)"
       boxShadow="-5px 0 20px rgba(0, 0, 0, 0.3)"
-      zIndex={5}
+      zIndex={1}
       p="2rem"
       flexDirection="column"
       gap="2rem"

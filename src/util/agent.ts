@@ -13,6 +13,7 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 import { HELIUS_MAINNET_RPC } from './constants';
+import DefiPlugin from '@solana-agent-kit/plugin-defi';
 
 type SwapParams = {
   outputMint: string;
@@ -94,6 +95,7 @@ export const createAgent = (wallet: WalletContextState, connection: Connection) 
   });
 
   agent.use(TokenPlugin as unknown as { actions: Action[]; methods: Record<string, any>; initialize: () => void; name: string });
+  agent.use(DefiPlugin as unknown as { actions: Action[]; methods: Record<string, any>; initialize: () => void; name: string });
   return agent;
 };
 

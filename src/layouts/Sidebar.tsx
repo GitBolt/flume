@@ -101,7 +101,7 @@ const Sidebar = ({ sidebarContent }: Props) => {
 
       <Flex sx={{
         w: "75%",
-        background: "bg.100",
+        background: "bg.200",
         borderRight: "1px solid",
         borderColor: "gray.100",
         flexFlow: "column",

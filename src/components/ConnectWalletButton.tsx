@@ -78,6 +78,7 @@ const ConnectWalletButton = () => {
       {connected && (
         <MenuList
           w="17rem"
+          zIndex={1000}
           p="0.5rem"
           bg="linear-gradient(243.86deg, rgba(38, 42, 55, 0.5) 0%, rgba(36, 55, 78, 0) 100.97%)"
           borderRadius="1rem"
@@ -114,6 +115,7 @@ const ConnectWalletButton = () => {
 
       {!connected && wallets && (
         <MenuList
+          zIndex={1000}
           w="17rem"
           p="0.5rem"
           bg="linear-gradient(243.86deg, rgba(38, 42, 55, 0.5) 0%, rgba(36, 55, 78, 0) 100.97%)"
