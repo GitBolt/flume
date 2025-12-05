@@ -10,6 +10,7 @@ import {
   createAssociatedTokenAccountInstruction,
   createTransferInstruction,
 } from "node_modules/@solana/spl-token"
+import { HELIUS_MAINNET_RPC } from "./constants";
 
 
 export const sendSPL = async (
@@ -20,7 +21,7 @@ export const sendSPL = async (
   rpc?: string
 ) => {
 
-  const connection = new Connection(rpc || process.env.NEXT_PUBLIC_DEFAULT_RPC as string)
+  const connection = new Connection(rpc || (process.env.NEXT_PUBLIC_DEFAULT_RPC as string) || HELIUS_MAINNET_RPC)
   try {
     const fromTokenAccount = await getAssociatedTokenAddress(token, fromPubKey);
     const toTokenAccount = await getAssociatedTokenAddress(token, toPubKey);

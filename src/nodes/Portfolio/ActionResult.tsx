@@ -45,20 +45,21 @@ const ActionResult: FC<NodeProps & { data: ActionResultData }> = ({ data, select
       <Flex
         w="90px"
         h="90px"
-        borderRadius="18px"
+        borderRadius="20px"
         bg={getStatusColor()}
         align="center"
         justify="center"
         position="relative"
         boxShadow={
           selected
-            ? '0px 0px 20px rgba(255, 0, 153, 0.8), 0px 8px 25px rgba(0, 0, 0, 0.4)'
-            : '0px 5px 20px rgba(0, 0, 0, 0.35)'
+            ? '0px 0px 20px rgba(100, 200, 150, 0.6), 0px 10px 30px rgba(0, 0, 0, 0.3)'
+            : '0px 8px 32px rgba(0, 0, 0, 0.25), inset 0px 1px 0px rgba(255, 255, 255, 0.1)'
         }
-        border={selected ? '2px solid #FF0099' : 'none'}
-        transition="all 0.2s ease"
+        border={selected ? '2px solid rgba(255, 255, 255, 0.3)' : '0.5px solid rgba(255, 255, 255, 0.18)'}
+        transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
         _hover={{
-          transform: 'scale(1.05)',
+          transform: 'scale(1.08) translateY(-2px)',
+          boxShadow: '0px 12px 40px rgba(0, 0, 0, 0.3), inset 0px 1px 0px rgba(255, 255, 255, 0.15)',
         }}
       >
         <VStack spacing="5px">
@@ -73,15 +74,17 @@ const ActionResult: FC<NodeProps & { data: ActionResultData }> = ({ data, select
         {/* Timestamp badge */}
         <Box
           position="absolute"
-          top="5px"
-          right="5px"
-          bg="rgba(0, 0, 0, 0.3)"
+          top="4px"
+          right="4px"
+          bg="rgba(0, 0, 0, 0.4)"
+          backdropFilter="blur(10px)"
           color="white"
-          fontSize="0.8rem"
-          fontWeight="600"
-          borderRadius="5px"
-          px="5px"
-          py="2px"
+          fontSize="0.7rem"
+          fontWeight="700"
+          borderRadius="8px"
+          px="6px"
+          py="3px"
+          border="0.5px solid rgba(255, 255, 255, 0.2)"
         >
           {new Date(data.timestamp).toLocaleTimeString([], { 
             hour: '2-digit', 
@@ -94,25 +97,54 @@ const ActionResult: FC<NodeProps & { data: ActionResultData }> = ({ data, select
       <VStack spacing="2px" w="90px">
         <Text
           color="white"
-          fontSize="1.2rem"
+          fontSize="1.1rem"
           fontWeight="600"
           textAlign="center"
           noOfLines={1}
           w="100%"
+          textShadow="0px 2px 4px rgba(0, 0, 0, 0.3)"
+          letterSpacing="0.3px"
         >
           Action
         </Text>
         <Text
           color="rgba(255, 255, 255, 0.7)"
-          fontSize="1rem"
+          fontSize="0.95rem"
           fontWeight="500"
           textAlign="center"
           noOfLines={1}
           w="100%"
+          textShadow="0px 1px 2px rgba(0, 0, 0, 0.3)"
         >
           {data.prompt.length > 12 ? data.prompt.slice(0, 12) + '...' : data.prompt}
         </Text>
       </VStack>
+
+      {/* Transaction Signature */}
+      {data.transactionSignature && (
+        <VStack spacing="4px" w="220px">
+          <Text color="rgba(255, 255, 255, 0.5)" fontSize="0.75rem" fontWeight="600" letterSpacing="0.5px">
+            TRANSACTION
+          </Text>
+          <Text
+            color="rgba(0, 255, 150, 0.95)"
+            fontSize="0.8rem"
+            fontWeight="600"
+            textAlign="center"
+            bg="rgba(0, 0, 0, 0.3)"
+            backdropFilter="blur(10px)"
+            px="10px"
+            py="6px"
+            borderRadius="10px"
+            w="100%"
+            noOfLines={1}
+            border="0.5px solid rgba(0, 255, 150, 0.2)"
+            boxShadow="0px 2px 8px rgba(0, 255, 150, 0.15)"
+          >
+            {data.transactionSignature.slice(0, 8)}...{data.transactionSignature.slice(-8)}
+          </Text>
+        </VStack>
+      )}
 
       {/* Solscan Link */}
       {solscanUrl && (
@@ -120,17 +152,21 @@ const ActionResult: FC<NodeProps & { data: ActionResultData }> = ({ data, select
           href={solscanUrl}
           isExternal
           onClick={(e) => e.stopPropagation()}
-          bg="rgba(0, 255, 150, 0.2)"
-          px="10px"
-          py="5px"
-          borderRadius="8px"
+          bg="linear-gradient(135deg, rgba(0, 255, 150, 0.2) 0%, rgba(0, 200, 120, 0.2) 100%)"
+          backdropFilter="blur(10px)"
+          px="14px"
+          py="8px"
+          borderRadius="14px"
+          border="0.5px solid rgba(0, 255, 150, 0.3)"
+          boxShadow="0px 4px 12px rgba(0, 255, 150, 0.2)"
           _hover={{
-            bg: 'rgba(0, 255, 150, 0.3)',
-            transform: 'scale(1.05)',
+            bg: 'linear-gradient(135deg, rgba(0, 255, 150, 0.3) 0%, rgba(0, 200, 120, 0.3) 100%)',
+            transform: 'scale(1.05) translateY(-2px)',
+            boxShadow: '0px 6px 16px rgba(0, 255, 150, 0.3)',
           }}
-          transition="all 0.2s"
+          transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
         >
-          <Text color="#00ff96" fontSize="1rem" fontWeight="700">
+          <Text color="#00ff96" fontSize="0.95rem" fontWeight="700" letterSpacing="0.3px">
             View on Solscan →
           </Text>
         </Link>

@@ -1,5 +1,6 @@
 import { createContext, useState, useContext } from 'react';
 import { ReactNode } from 'react';
+import { HELIUS_MAINNET_RPC } from '@/util/constants';
 
 interface NetworkContextValue {
   selectedNetwork: string;
@@ -7,12 +8,12 @@ interface NetworkContextValue {
 }
 
 const NetworkContext = createContext<NetworkContextValue>({
-  selectedNetwork: process.env.NEXT_PUBLIC_DEFAULT_RPC as string,
+  selectedNetwork: HELIUS_MAINNET_RPC,
   updateNetwork: () => { },
 });
 
 export const NetworkProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedNetwork, setSelectedNetwork] = useState<string>(process.env.NEXT_PUBLIC_DEFAULT_RPC as string);
+  const [selectedNetwork, setSelectedNetwork] = useState<string>(HELIUS_MAINNET_RPC);
 
 
   const updateNetwork = (network: string) => {

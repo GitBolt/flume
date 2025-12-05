@@ -13,6 +13,8 @@ import styles from '@/styles/Playground.module.css'
 import { nodeTypes } from '@/nodes';
 import NodeEdge from '@/layouts/NodeEdge';
 import useCtrlA from '@/util/useCtrlA';
+import { buildAssetPayload } from '@/util/assets';
+import { ACTION_DEFINITIONS } from '@/util/sendaiActions';
 
 type Props = {
   onNodeChange: React.Dispatch<React.SetStateAction<any>>,
@@ -40,25 +42,65 @@ const Playground = function Playground({
 
 
   const onConnect = useCallback((params: Connection) => {
-    setEdges((eds) => addEdge(params, eds))
+    setEdges((eds) => addEdge(params, eds));
+    setNodes((nds) => {
+      if (!params.source || !params.target) return nds;
+
+      const sourceNode = nds.find((n) => n.id === params.source);
+      const targetIndex = nds.findIndex((n) => n.id === params.target);
+      if (!sourceNode || targetIndex === -1) return nds;
+
+      const payload = buildAssetPayload(sourceNode);
+      if (!payload) return nds;
+
+      const updatedNodes = [...nds];
+      const targetNode = nds[targetIndex];
+
+      updatedNodes[targetIndex] = {
+        ...targetNode,
+        data: {
+          ...targetNode.data,
+          [params.source]: payload,
+        },
+      };
+
+      return updatedNodes;
+    });
   }
-    , [setEdges]
+    , [setEdges, setNodes]
   );
 
 
   useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        const values = Object.keys(node.data)
+    // Filter nodes to delete - only delete DeFi action nodes, not asset nodes
+    const assetNodeTypes = ['tokenCard', 'nftCard', 'walletBalance', 'folder'];
+    const actionNodeTypes = ACTION_DEFINITIONS.map(def => def.type);
+    
+    setNodes((nds) => {
+      // First, remove only deletable nodes (action nodes that are selected)
+      const updatedNodes = nds.filter((node) => {
+        // Keep all asset nodes regardless of selection
+        if (assetNodeTypes.includes(node.type || '')) {
+          return true;
+        }
+        // For action nodes, keep them if not selected
+        return !node.selected;
+      });
+      
+      // Then clean up data references
+      return updatedNodes.map((node) => {
+        const values = Object.keys(node.data || {});
         values.forEach((value) => {
-          if (!nodes.map((nd) => nd.id).includes(value)) {
+          if (!updatedNodes.map((nd) => nd.id).includes(value)) {
             const { [value]: removed, ...rest } = node.data;
             node.data = rest;
           }
-        })
+        });
         return node;
-      }))
-      onNodeChange(nodes)
+      });
+    });
+    
+    onNodeChange(nodes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backspacePress]);
 

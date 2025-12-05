@@ -23,11 +23,11 @@ body {
 }
 
 .react-flow {
-  background-color: #14141B;
+  background: linear-gradient(to bottom, #1E1E2E 0%, #252535 100%);
 }
 
 .react-flow__edge .react-flow__edge-path {
-  stroke: #DD11B1;
+  stroke: #A1A2FF;
   stroke-width: 2;
   stroke-opacity: 0.75;
 }

@@ -7,36 +7,37 @@ export const themeDark = extendTheme({
   },
   colors: {
     white: {
-      100: "#DEDEE2"
+      100: "#FFFFFF"
     },
     bg: {
-      100: '#14141B',
-      200: '#121218',
-      300: "#1C1F2B",
-      400: "#101018",
-      'gradient': 'linear-gradient(96.6deg, #222037 2.37%, #191728 101.12%)',
+      100: '#1E1E2E',
+      200: '#1A1A28',
+      300: "#252535",
+      400: "#16161F",
+      'gradient': 'linear-gradient(135deg, #1E1E2E 0%, #252535 100%)',
     },
     blue: {
-      100: "#6052FF",
-      200: "#7266FF",
-
-      300: "#7166EACC",
-      400: "#3E369B",
-      500: "#7058FF",
-      "gradient": 'linear-gradient(268.02deg, #33335E 0.24%, #2D2D56 97.53%);'
+      100: "#A1A2FF",
+      200: "#B5B6FF",
+      300: "#8E8FFF",
+      400: "#7172E8",
+      500: "#A1A2FF",
+      "gradient": 'linear-gradient(135deg, #A1A2FF 0%, #8E8FFF 100%);'
     },
-    magenta: {
-      100: "#DD117F",
-      200: "#FF55B1",
-      300: "#BF0073",
-      400: "#BF007333"
+    primary: {
+      100: "#A1A2FF",
+      200: "#B5B6FF",
+      300: "#8E8FFF",
+      400: "#7172E8",
+      500: "#9091F5",
+      "gradient": 'linear-gradient(135deg, #A1A2FF 0%, #8E8FFF 100%);'
     },
     gray: {
-      100: "#22212E",
-      200: "#2A2842",
-      300: "#514D6D",
+      100: "#2D2D3D",
+      200: "#353545",
+      300: "#4A4A5A",
     },
-    error: "#B02A2A"
+    error: "#FF6B6B"
 
   },
   components: {
@@ -181,7 +182,10 @@ export const themeDark = extendTheme({
           borderRadius: "0.5rem",
           variant: "filled",
           color: "white",
-          bg: "magenta.100",
+          bg: "primary.100",
+          _hover: {
+            bg: "primary.200",
+          },
           _active: {
             transform: "scale(90%)",
           }

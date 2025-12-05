@@ -17,6 +17,7 @@ import {
 } from "@solana/web3.js";
 import base58 from "bs58";
 import { Text } from "@chakra-ui/react";
+import { HELIUS_MAINNET_RPC } from "@/util/constants";
 
 const TransactionNode: FC<NodeProps> = (props) => {
   const { getNode, setNodes, getEdges } = useReactFlow();
@@ -64,7 +65,7 @@ const TransactionNode: FC<NodeProps> = (props) => {
 
     const runThis = async () => {
       const connection = new Connection(
-        values["rpc_url"] || process.env.NEXT_PUBLIC_DEFAULT_RPC as string
+        values["rpc_url"] || (process.env.NEXT_PUBLIC_DEFAULT_RPC as string) || HELIUS_MAINNET_RPC
       );
       const tx = new Transaction()
 

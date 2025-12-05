@@ -1,10 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { FC, useState } from 'react';
-import { NodeProps, useReactFlow, useNodeId, Position } from 'reactflow';
-import { Flex, Text, VStack, Box, Grid, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, useDisclosure, Input, Button, HStack, useToast, Spinner } from '@chakra-ui/react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import React, { FC } from 'react';
+import { NodeProps, useReactFlow, useNodeId, Position, Connection } from 'reactflow';
+import { Flex, Text, VStack, Box, Grid, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, useDisclosure, useToast } from '@chakra-ui/react';
 import { createNodeId } from '@/util/randomData';
 import { CustomHandle } from '@/layouts/CustomHandle';
+import { FlowToken, SOL_MINT } from '@/util/assets';
 
 interface FolderData {
   name: string;
@@ -21,12 +21,9 @@ const Folder: FC<NodeProps & { data: FolderData }> = ({ data, selected }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const folderName = data.name || 'Folder';
   const apps = data.apps || [];
-  const [prompt, setPrompt] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const { setNodes, setEdges, getNode } = useReactFlow();
+  const { setNodes } = useReactFlow();
   const nodeId = useNodeId();
   const toast = useToast();
-  const { publicKey } = useWallet();
 
   // Get preview icons (first 4 apps in folder)
   const previewApps = apps.slice(0, 4);
@@ -56,175 +53,87 @@ const Folder: FC<NodeProps & { data: FolderData }> = ({ data, selected }) => {
     return 'App';
   };
 
-  const handleAIAction = async () => {
-    if (!prompt.trim()) {
-      toast({
-        title: 'Please enter a prompt',
-        status: 'warning',
-        duration: 2000,
-      });
-      return;
-    }
+  const handleConnect = (e: Connection) => {
+    if (!e.target) return;
 
-    if (!publicKey) {
-      toast({
-        title: 'Please connect your wallet',
-        status: 'error',
-        duration: 3000,
-      });
-      return;
-    }
+    const tokens: FlowToken[] = [];
+    const nfts: any[] = [];
 
-    setIsProcessing(true);
-
-    try {
-      // For now, we'll create a simulated result
-      // In production, you'd call the API route here
-      const response = await fetch('/api/agent-action', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt,
-          walletAddress: publicKey.toBase58(),
-          folderApps: apps,
-        }),
-      });
-
-      const result = await response.json();
-
-      // Get current folder position
-      const currentNode = getNode(nodeId || '');
-      const folderPosition = currentNode?.position || { x: 0, y: 0 };
-
-      // Create result node branching from folder
-      const resultNodeId = createNodeId();
-      const resultNode = {
-        id: resultNodeId,
-        type: 'actionResult',
-        position: {
-          x: folderPosition.x + 250,
-          y: folderPosition.y,
-        },
-        data: {
-          prompt,
-          result: result.text || result.error || 'Processing complete',
-          status: result.success ? 'success' : 'error',
-          timestamp: new Date().toISOString(),
-          transactionSignature: result.transactionSignature || null,
-        },
-      };
-
-      setNodes((nds) => [...nds, resultNode]);
-
-      // Create edge from folder to result node
-      if (nodeId) {
-        setEdges((eds) => [
-          ...eds,
-          {
-            id: `${nodeId}-${resultNodeId}`,
-            source: nodeId,
-            target: resultNodeId,
-            type: 'default',
-            animated: result.success,
-            style: {
-              stroke: result.success ? '#00ff96' : '#ff4444',
-              strokeWidth: 2,
-            },
-          },
-        ]);
+    apps.forEach((app: any) => {
+      if (app.type === 'tokenCard' && app.data) {
+        tokens.push({
+          amount: app.data.amount,
+          decimals: app.data.decimals,
+          mint: app.data.mint,
+          symbol: app.data.symbol,
+          logo: app.data.logo,
+          name: app.data.name,
+        });
       }
-
-      toast({
-        title: result.success ? 'Action completed' : 'Action failed',
-        description: result.text?.slice(0, 100) || result.error?.slice(0, 100),
-        status: result.success ? 'success' : 'error',
-        duration: 5000,
-      });
-
-      setPrompt('');
-      onClose();
-    } catch (error: any) {
-      console.error('AI Action error:', error);
-      
-      // Still create a result node showing the error
-      const currentNode = getNode(nodeId || '');
-      const folderPosition = currentNode?.position || { x: 0, y: 0 };
-
-      const errorNodeId = createNodeId();
-      const errorNode = {
-        id: errorNodeId,
-        type: 'actionResult',
-        position: {
-          x: folderPosition.x + 250,
-          y: folderPosition.y,
-        },
-        data: {
-          prompt,
-          result: error.message || 'Failed to process action',
-          status: 'error' as const,
-          timestamp: new Date().toISOString(),
-          transactionSignature: null,
-        },
-      };
-
-      setNodes((nds) => [...nds, errorNode]);
-
-      // Create edge from folder to error node
-      if (nodeId) {
-        setEdges((eds) => [
-          ...eds,
-          {
-            id: `${nodeId}-${errorNodeId}`,
-            source: nodeId,
-            target: errorNodeId,
-            type: 'default',
-            animated: false,
-            style: {
-              stroke: '#ff4444',
-              strokeWidth: 2,
-            },
-          },
-        ]);
+      if (app.type === 'walletBalance' && app.data) {
+        tokens.push({
+          amount: app.data.solana,
+          decimals: 9,
+          mint: SOL_MINT,
+          symbol: 'SOL',
+          name: 'Solana',
+        });
       }
+      if (app.type === 'nftCard' && app.data) {
+        nfts.push(app.data);
+      }
+    });
 
-      toast({
-        title: 'Action failed',
-        description: error.message || 'An error occurred',
-        status: 'error',
-        duration: 5000,
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === e.target) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              [nodeId as string]: {
+                kind: 'folder',
+                tokens,
+                nfts,
+                name: folderName,
+              },
+            },
+          };
+        }
+        return node;
+      })
+    );
   };
 
   return (
     <>
       <VStack spacing="12px" cursor="grab" userSelect="none">
-        <CustomHandle pos={Position.Right} type="source" />
+        <CustomHandle pos={Position.Right} type="source" id="asset" onConnect={handleConnect} />
         {/* Folder Icon */}
         <Flex
           w="90px"
           h="90px"
-          borderRadius="18px"
-          bg="linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)"
-          backdropFilter="blur(20px)"
-          border="1px solid rgba(255, 255, 255, 0.2)"
+          borderRadius="20px"
+          bg="linear-gradient(135deg, rgba(120, 120, 140, 0.25) 0%, rgba(100, 100, 120, 0.15) 100%)"
+          backdropFilter="blur(40px) saturate(180%)"
+          border="0.5px solid rgba(255, 255, 255, 0.18)"
           align="center"
           justify="center"
           position="relative"
           boxShadow={
             selected
-              ? '0px 0px 20px rgba(255, 0, 153, 0.8), 0px 8px 25px rgba(0, 0, 0, 0.4)'
-              : '0px 5px 20px rgba(0, 0, 0, 0.35)'
+              ? '0px 0px 20px rgba(100, 150, 255, 0.6), 0px 10px 30px rgba(0, 0, 0, 0.3)'
+              : '0px 8px 32px rgba(0, 0, 0, 0.25), inset 0px 1px 0px rgba(255, 255, 255, 0.1)'
           }
           onClick={onOpen}
-          transition="all 0.2s ease"
+          transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
           _hover={{
-            transform: 'scale(1.05)',
-            bg: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%)',
+            transform: 'scale(1.08) translateY(-2px)',
+            bg: 'linear-gradient(135deg, rgba(130, 130, 150, 0.3) 0%, rgba(110, 110, 130, 0.2) 100%)',
+            boxShadow: '0px 12px 40px rgba(0, 0, 0, 0.3), inset 0px 1px 0px rgba(255, 255, 255, 0.15)',
+          }}
+          _active={{
+            transform: 'scale(1.02)',
           }}
         >
           {/* Grid of mini app icons */}
@@ -239,18 +148,19 @@ const Folder: FC<NodeProps & { data: FolderData }> = ({ data, selected }) => {
                 key={index}
                 w="100%"
                 h="100%"
-                borderRadius="6px"
+                borderRadius="8px"
                 bg={
                   app.type === 'tokenCard'
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                    ? 'linear-gradient(135deg, #A1A2FF 0%, #8E8FFF 100%)'
                     : app.type === 'nftCard'
-                    ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-                    : 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+                    ? 'linear-gradient(135deg, #FF6B9D 0%, #C44569 100%)'
+                    : 'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)'
                 }
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
-                fontSize="1.2rem"
+                fontSize="1.3rem"
+                boxShadow="inset 0px 1px 0px rgba(255, 255, 255, 0.2)"
               >
                 {typeof getAppIcon(app) === 'string' ? (
                   <Text>{getAppIcon(app)}</Text>
@@ -277,18 +187,20 @@ const Folder: FC<NodeProps & { data: FolderData }> = ({ data, selected }) => {
           {apps.length > 4 && (
             <Box
               position="absolute"
-              top="5px"
-              right="5px"
-              bg="rgba(255, 0, 153, 0.9)"
+              top="4px"
+              right="4px"
+              bg="linear-gradient(135deg, #FF006E 0%, #FF4E91 100%)"
               color="white"
-              fontSize="0.9rem"
-              fontWeight="700"
+              fontSize="0.75rem"
+              fontWeight="800"
               borderRadius="full"
-              w="20px"
-              h="20px"
+              w="22px"
+              h="22px"
               display="flex"
               alignItems="center"
               justifyContent="center"
+              boxShadow="0px 2px 8px rgba(255, 0, 110, 0.4), inset 0px 1px 0px rgba(255, 255, 255, 0.3)"
+              border="1.5px solid rgba(255, 255, 255, 0.3)"
             >
               {apps.length}
             </Box>
@@ -298,86 +210,44 @@ const Folder: FC<NodeProps & { data: FolderData }> = ({ data, selected }) => {
         {/* Folder Name */}
         <Text
           color="white"
-          fontSize="1.2rem"
+          fontSize="1.1rem"
           fontWeight="600"
           textAlign="center"
           noOfLines={1}
           w="90px"
+          textShadow="0px 2px 4px rgba(0, 0, 0, 0.3)"
+          letterSpacing="0.3px"
         >
           {folderName}
         </Text>
-
-        {/* AI Input Field - Below Folder on Canvas */}
-        <Box
-          w="200px"
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <HStack spacing="5px">
-            <Input
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !isProcessing) {
-                  handleAIAction();
-                }
-              }}
-              placeholder="AI command..."
-              bg="rgba(40, 40, 60, 0.95)"
-              border="1px solid rgba(255, 255, 255, 0.2)"
-              color="white"
-              fontSize="1.1rem"
-              h="32px"
-              _placeholder={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '1rem' }}
-              _hover={{ 
-                bg: 'rgba(50, 50, 70, 0.95)',
-                border: '1px solid rgba(255, 255, 255, 0.3)'
-              }}
-              _focus={{
-                bg: 'rgba(50, 50, 70, 0.95)',
-                border: '1px solid rgba(255, 0, 153, 0.6)',
-                outline: 'none',
-                boxShadow: '0px 0px 10px rgba(255, 0, 153, 0.3)'
-              }}
-              disabled={isProcessing}
-            />
-            <Button
-              onClick={handleAIAction}
-              isDisabled={isProcessing || !prompt.trim()}
-              bg="linear-gradient(135deg, #FF0099 0%, #FF00FF 100%)"
-              color="white"
-              fontSize="1rem"
-              fontWeight="700"
-              px="12px"
-              h="32px"
-              minW="50px"
-              _hover={{
-                transform: 'scale(1.05)',
-              }}
-              _active={{
-                transform: 'scale(0.95)',
-              }}
-            >
-              {isProcessing ? <Spinner size="sm" /> : '→'}
-            </Button>
-          </HStack>
-        </Box>
       </VStack>
 
       {/* Folder Open Modal */}
       <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
-        <ModalOverlay bg="rgba(0, 0, 0, 0.7)" backdropFilter="blur(10px)" />
+        <ModalOverlay bg="rgba(0, 0, 0, 0.75)" backdropFilter="blur(20px)" />
         <ModalContent
-          bg="linear-gradient(135deg, rgba(40, 40, 60, 0.95) 0%, rgba(30, 30, 50, 0.95) 100%)"
-          backdropFilter="blur(20px)"
-          borderRadius="20px"
-          border="1px solid rgba(255, 255, 255, 0.1)"
+          bg="linear-gradient(135deg, rgba(30, 30, 50, 0.95) 0%, rgba(20, 20, 40, 0.95) 100%)"
+          backdropFilter="blur(40px) saturate(180%)"
+          borderRadius="24px"
+          border="0.5px solid rgba(255, 255, 255, 0.1)"
           maxH="80vh"
+          boxShadow="0px 20px 60px rgba(0, 0, 0, 0.5)"
         >
-          <ModalHeader color="white" fontSize="2rem" fontWeight="700">
+          <ModalHeader 
+            color="white" 
+            fontSize="1.8rem" 
+            fontWeight="700"
+            pt="24px"
+            textShadow="0px 2px 4px rgba(0, 0, 0, 0.3)"
+            letterSpacing="0.3px"
+          >
             {folderName}
           </ModalHeader>
-          <ModalCloseButton color="white" />
+          <ModalCloseButton 
+            color="white" 
+            _hover={{ bg: 'rgba(255, 255, 255, 0.1)' }}
+            borderRadius="full"
+          />
           <ModalBody pb={6}>
             <Grid
               templateColumns="repeat(4, 1fr)"
@@ -389,47 +259,88 @@ const Folder: FC<NodeProps & { data: FolderData }> = ({ data, selected }) => {
                   {/* Remove button */}
                   <Box
                     position="absolute"
-                    top="-5px"
-                    right="-5px"
-                    w="20px"
-                    h="20px"
+                    top="-6px"
+                    right="-6px"
+                    w="24px"
+                    h="24px"
                     borderRadius="full"
-                    bg="rgba(255, 0, 0, 0.9)"
+                    bg="linear-gradient(135deg, #ff3b3b 0%, #ff6b6b 100%)"
                     display="flex"
                     alignItems="center"
                     justifyContent="center"
                     cursor="pointer"
                     zIndex={10}
+                    boxShadow="0px 2px 8px rgba(255, 59, 59, 0.4), inset 0px 1px 0px rgba(255, 255, 255, 0.3)"
+                    border="1.5px solid rgba(255, 255, 255, 0.3)"
                     onClick={(e) => {
                       e.stopPropagation();
+                      const removedApp = apps[index];
+                      const updatedApps = apps.filter((_: any, i: number) => i !== index);
+                      
                       // Remove app from folder
-                      setNodes((nds) =>
-                        nds.map((n) => {
+                      setNodes((nds) => {
+                        const updatedNodes = nds.map((n) => {
                           if (n.id === nodeId) {
                             return {
                               ...n,
                               data: {
                                 ...n.data,
-                                apps: apps.filter((_: any, i: number) => i !== index),
+                                apps: updatedApps,
                               },
                             };
                           }
                           return n;
-                        })
-                      );
-                      toast({
-                        title: 'App removed from folder',
-                        status: 'info',
-                        duration: 2000,
+                        });
+
+                        // If folder is now empty, remove it; otherwise add the app back to canvas
+                        if (updatedApps.length === 0) {
+                          // Remove the folder
+                          return updatedNodes.filter(n => n.id !== nodeId);
+                        } else {
+                          // Get current folder node to position the removed app nearby
+                          const currentFolder = nds.find(n => n.id === nodeId);
+                          const folderPos = currentFolder?.position || { x: 0, y: 0 };
+                          
+                          // Add the removed app back to the canvas
+                          return [
+                            ...updatedNodes,
+                            {
+                              id: removedApp.id,
+                              type: removedApp.type,
+                              position: {
+                                x: folderPos.x + 150, // Position to the right of folder
+                                y: folderPos.y,
+                              },
+                              data: removedApp.data,
+                            },
+                          ];
+                        }
                       });
+
+                      if (updatedApps.length === 0) {
+                        toast({
+                          title: 'Folder removed',
+                          description: 'Last app removed from folder',
+                          status: 'info',
+                          duration: 2000,
+                        });
+                        onClose(); // Close modal if folder is empty
+                      } else {
+                        toast({
+                          title: 'App removed from folder',
+                          status: 'info',
+                          duration: 2000,
+                        });
+                      }
                     }}
                     _hover={{
-                      bg: 'rgba(255, 0, 0, 1)',
-                      transform: 'scale(1.1)',
+                      bg: 'linear-gradient(135deg, #ff2020 0%, #ff5050 100%)',
+                      transform: 'scale(1.15)',
+                      boxShadow: '0px 3px 12px rgba(255, 59, 59, 0.6)',
                     }}
-                    transition="all 0.2s"
+                    transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                   >
-                    <Text color="white" fontSize="1.2rem" fontWeight="700" lineHeight="1">
+                    <Text color="white" fontSize="1.3rem" fontWeight="900" lineHeight="1">
                       ×
                     </Text>
                   </Box>
@@ -437,21 +348,22 @@ const Folder: FC<NodeProps & { data: FolderData }> = ({ data, selected }) => {
                   <Flex
                     w="70px"
                     h="70px"
-                    borderRadius="15px"
+                    borderRadius="16px"
                     bg={
                       app.type === 'tokenCard'
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        ? 'linear-gradient(135deg, #A1A2FF 0%, #8E8FFF 100%)'
                         : app.type === 'nftCard'
-                        ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-                        : 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+                        ? 'linear-gradient(135deg, #FF6B9D 0%, #C44569 100%)'
+                        : 'linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)'
                     }
                     align="center"
                     justify="center"
-                    boxShadow="0px 5px 15px rgba(0, 0, 0, 0.3)"
+                    boxShadow="0px 6px 20px rgba(0, 0, 0, 0.25), inset 0px 1px 0px rgba(255, 255, 255, 0.2)"
                     cursor="pointer"
-                    transition="all 0.2s ease"
+                    transition="all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                     _hover={{
-                      transform: 'scale(1.1)',
+                      transform: 'scale(1.08) translateY(-2px)',
+                      boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.3), inset 0px 1px 0px rgba(255, 255, 255, 0.2)',
                     }}
                   >
                     {typeof getAppIcon(app) === 'string' ? (
@@ -464,11 +376,12 @@ const Folder: FC<NodeProps & { data: FolderData }> = ({ data, selected }) => {
                   </Flex>
                   <Text
                     color="white"
-                    fontSize="1.1rem"
+                    fontSize="1rem"
                     fontWeight="600"
                     textAlign="center"
                     noOfLines={1}
                     w="70px"
+                    textShadow="0px 1px 2px rgba(0, 0, 0, 0.3)"
                   >
                     {getAppLabel(app)}
                   </Text>
@@ -483,4 +396,3 @@ const Folder: FC<NodeProps & { data: FolderData }> = ({ data, selected }) => {
 };
 
 export default Folder;
-

@@ -25,6 +25,7 @@ import { ChevronDownIcon } from '@chakra-ui/icons';
 // Util
 import { getNetworkName } from '@/util/helper';
 import { useNetworkContext } from '@/context/configContext'
+import { HELIUS_MAINNET_RPC } from '@/util/constants';
 
 
 export const NetworkSelector = () => {
@@ -96,7 +97,7 @@ export const NetworkSelector = () => {
             _hover={{ background: "linear-gradient(243.86deg, rgba(38, 42, 55, 0.8) 10%,rgba(38, 42, 55, 0.4) 100%)" }}
             bg="linear-gradient(243.86deg, rgba(38, 42, 55, 0.5) 0%, rgba(36, 55, 78, 0) 100.97%)"
             onClick={async () => {
-              updateNetwork("https://api.mainnet-beta.solana.com")
+              updateNetwork(HELIUS_MAINNET_RPC)
             }}
           >
             Mainnet-beta
@@ -110,7 +111,7 @@ export const NetworkSelector = () => {
             _hover={{ background: "linear-gradient(243.86deg, rgba(38, 42, 55, 0.8) 10%,rgba(38, 42, 55, 0.4) 100%)" }}
             bg="linear-gradient(243.86deg, rgba(38, 42, 55, 0.5) 0%, rgba(36, 55, 78, 0) 100.97%)"
             onClick={async () => {
-              updateNetwork(process.env.NEXT_PUBLIC_DEFAULT_RPC || "https://api.devnet.solana.com")
+              updateNetwork(process.env.NEXT_PUBLIC_DEVNET_RPC || "https://api.devnet.solana.com")
             }}
           >
             Devnet

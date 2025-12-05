@@ -6,6 +6,7 @@ import { sidebarContent } from "@/util/sidebarContent";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Navbar } from "@/layouts/Navbar";
 import { useEdgesState, useNodesState } from "reactflow";
+import { FlowExecutor } from "@/components/FlowExecutor";
 import { useEffect, useState, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { fetchWalletPortfolio } from "@/services/moralis";
@@ -238,6 +239,7 @@ const Home: NextPage = () => {
           onEdgeChange={onEdgesChange}
           onNodeDragStop={handleNodeDragStop}
         />
+        <FlowExecutor />
       </Flex>
     </>
   );

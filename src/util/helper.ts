@@ -1,9 +1,8 @@
 import { PublicKey } from "@solana/web3.js";
-import * as anchor from "@project-serum/anchor"
+import * as anchor from "@coral-xyz/anchor"
 import * as bip39 from 'bip39';
 import * as ed25519 from 'ed25519-hd-key';
 import { Keypair } from '@solana/web3.js';
-import { IDLData, IDLType } from "@/types/idl";
 
 // ChatGPT wrote this horrible code, but it works so I'm not touching it
 export const stringify = (value: any, indent = 2): string => {
@@ -29,41 +28,7 @@ export const stringify = (value: any, indent = 2): string => {
 };
 
 
-export const getProvider = (wallet: anchor.Wallet, rpc_url?: string) => {
-  const opts = {
-    preflightCommitment: 'processed' as anchor.web3.ConfirmOptions,
-  };
-  const connectionURI =
-    rpc_url || process.env.NEXT_PUBLIC_DEFAULT_RPC as string
-  const connection = new anchor.web3.Connection(
-    connectionURI,
-    opts.preflightCommitment
-  );
-  const provider = new anchor.AnchorProvider(
-    connection,
-    wallet,
-    opts.preflightCommitment
-  );
-  return provider;
-};
 
-export const getProgram = async (protocolAddress: PublicKey, wallet: anchor.Wallet, rpc_url?: string) => {
-  const provider = getProvider(wallet, rpc_url)
-  const program = await anchor.Program.at(protocolAddress, provider);
-  return program
-}
-
-export const anchorProgram = (wallet: anchor.Wallet, network?: string) => {
-  const provider = getProvider(wallet, network || process.env.NEXT_PUBLIC_DEFAULT_RPC);
-  const idl = IDLData as anchor.Idl;
-  const program = new anchor.Program(
-    idl,
-    new PublicKey(IDLData.metadata.address),
-    provider
-  ) as unknown as anchor.Program<IDLType>;
-
-  return program;
-};
 
 
 export const parseProtocolNumber = (protocolNumber: anchor.BN) =>
@@ -110,7 +75,7 @@ export const mnemonicToKp = (mnemonic?: string) => {
 
   const seed = bip39.mnemonicToSeedSync(generatedMnemonic as string);
   const derivedSeed = ed25519.derivePath(derivePath, seed.toString('hex')).key;
-  const keypair = Keypair.fromSeed(derivedSeed);
+  const keypair = Keypair.fromSeed(new Uint8Array(derivedSeed));
   return {
     publicKey: keypair.publicKey.toBase58(),
     privateKey: keypair.secretKey,

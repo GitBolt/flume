@@ -30,7 +30,7 @@ export const ThemeProvider = ({ children }: Props) => {
       const elem = document.querySelector(".react-flow") as HTMLElement
       if (!elem) return
 
-      if (localData == "default_dark") elem.style.background = themeDark.colors.bg["100"]
+      if (localData == "default_dark") elem.style.background = "linear-gradient(to bottom, #1E1E2E 0%, #252535 100%)"
       if (localData == "high_contrast") elem.style.background = themeHighContrast.colors.bg["100"]
 
     }

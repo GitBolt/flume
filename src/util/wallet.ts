@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
-import { Keypair, PublicKey, Transaction } from "@solana/web3.js";
-import { Wallet } from "@project-serum/anchor";
+import { Keypair, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
+import { Wallet } from "@coral-xyz/anchor";
 
 export default class CustomWallet implements Wallet {
   constructor(readonly payer: Keypair) { }
@@ -8,21 +8,29 @@ export default class CustomWallet implements Wallet {
   static with_private_key(private_key: Uint8Array): CustomWallet | never {
 
     const payer = Keypair.fromSecretKey(
-      Buffer.from(
+      new Uint8Array(Buffer.from(
         private_key
-      )
+      ))
     );
     return new CustomWallet(payer);
   }
 
-  async signTransaction(tx: Transaction): Promise<Transaction> {
-    tx.partialSign(this.payer);
+  async signTransaction<T extends Transaction | VersionedTransaction>(tx: T): Promise<T> {
+    if (tx instanceof Transaction) {
+      tx.partialSign(this.payer);
+    } else if (tx instanceof VersionedTransaction) {
+      tx.sign([this.payer]);
+    }
     return tx;
   }
 
-  async signAllTransactions(txs: Transaction[]): Promise<Transaction[]> {
+  async signAllTransactions<T extends Transaction | VersionedTransaction>(txs: T[]): Promise<T[]> {
     return txs.map((t) => {
-      t.partialSign(this.payer);
+      if (t instanceof Transaction) {
+        t.partialSign(this.payer);
+      } else if (t instanceof VersionedTransaction) {
+        t.sign([this.payer]);
+      }
       return t;
     });
   }

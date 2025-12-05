@@ -1,208 +1,339 @@
-/* eslint-disable @next/next/no-img-element */
 import { useState, useRef, useEffect } from "react";
 import {
   Input,
-  List,
   Modal,
   Flex,
-  ListItem,
   Text,
   ModalContent,
   ModalOverlay,
   Box,
+  Spinner,
+  VStack,
+  Button,
+  useToast,
 } from "@chakra-ui/react";
 import { useReactFlow } from "reactflow";
-import { sidebarContent } from "@/util/sidebarContent";
-import { createNodeId, createNodePos } from "@/util/randomData";
-import { SearchResult, searcher } from "@/util/searcher";
+import { createNodeId } from "@/util/randomData";
 import { useCustomModal } from "@/context/modalContext";
+
+type FlowStep = {
+  action: string;
+  config: Record<string, any>;
+  description: string;
+  assetSource?: string;
+};
 
 
 export const CommandPalette = () => {
-
-  const { cmdPalette } = useCustomModal()
-
-  const [searchValue, setSearchValue] = useState("");
+  const { cmdPalette } = useCustomModal();
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [steps, setSteps] = useState<FlowStep[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [filteredItems, setFilteredItems] = useState<SearchResult[]>([]);
-  const { setNodes } = useReactFlow()
-  const listRef = useRef(null)
+  const { setNodes, setEdges } = useReactFlow();
+  const toast = useToast();
 
-  const [selectedResult, setSelectedResult] = useState<string>('');
-  const addNode = (type: string) => {
-    setNodes((nodes) => nodes.concat({
-      id: createNodeId(),
-      position: createNodePos(),
-      type,
-      data: {}
-    }))
-  }
-
-  const handleKeyDown = (event: any) => {
-    if (event.key === "k" && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      cmdPalette.onOpen();
-      inputRef.current?.focus();
+  useEffect(() => {
+    if (cmdPalette.isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
+  }, [cmdPalette.isOpen]);
 
-    if (event.key === "Escape" && cmdPalette.isOpen) {
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Escape") {
       event.preventDefault();
       cmdPalette.onClose();
+      setPrompt("");
+      setSteps([]);
+      setError(null);
     }
 
-    if (event.key === "Enter" && cmdPalette.isOpen) {
+    if (event.key === "Enter" && !loading) {
       event.preventDefault();
-      if (!filteredItems) return
-
-      addNode(selectedResult || "stringInput");
-    }
-
-    if (event.key === "ArrowUp" && cmdPalette.isOpen) {
-      event.preventDefault();
-      if (!filteredItems) return
-
-      const selectedIndex = filteredItems.indexOf(filteredItems.find((item) => item.type == selectedResult)!)
-      setSelectedResult(filteredItems[selectedIndex - 1].type)
-    }
-
-    if (event.key === "ArrowDown" && cmdPalette.isOpen) {
-      event.preventDefault();
-      if (!filteredItems) return
-
-      const selectedIndex = filteredItems.indexOf(filteredItems.find((item) => item.type == selectedResult)!)
-      setSelectedResult(filteredItems[selectedIndex + 1].type)
+      if (steps.length > 0) {
+        handleCreateFlow();
+      } else {
+        handleGenerate();
+      }
     }
   };
 
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
 
-  const handleClickOutside = (e: any) => {
-    if (!listRef.current || !e.target) return;
+    setLoading(true);
+    setError(null);
+    setSteps([]);
 
-    // @ts-ignore
-    if (!listRef.current.contains(e.target)) {
-      cmdPalette.onOpen();
+    try {
+      const response = await fetch('/api/generate-flow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate flow');
+      }
+
+      const parsedSteps = data.steps;
+      
+      if (!Array.isArray(parsedSteps) || parsedSteps.length === 0) {
+        throw new Error('Invalid flow generated');
+      }
+
+      setSteps(parsedSteps);
+      toast({
+        title: 'Flow generated!',
+        description: `Created ${parsedSteps.length} steps`,
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (err: any) {
+      console.error('Error generating flow:', err);
+      setError(err.message || 'Failed to generate flow');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to generate flow',
+        status: 'error',
+        duration: 5000,
+      });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleCreateFlow = () => {
+    if (steps.length === 0) return;
+
+    const newNodes: any[] = [];
+    const newEdges: any[] = [];
+    const nodeIds: string[] = [];
+
+    // Starting position
+    let xPosition = 200;
+    const yPosition = 200;
+    const xSpacing = 280;
+
+    steps.forEach((step, index) => {
+      const nodeId = createNodeId();
+      nodeIds.push(nodeId);
+
+      newNodes.push({
+        id: nodeId,
+        type: step.action,
+        position: { x: xPosition, y: yPosition },
+        data: {
+          config: step.config,
+          description: step.description,
+        },
+      });
+
+      // Create edge from previous node
+      if (index > 0 && step.assetSource) {
+        const sourceIndex = step.assetSource === 'portfolio' ? -1 : parseInt(step.assetSource.replace('step', '')) - 1;
+        if (sourceIndex >= 0 && sourceIndex < nodeIds.length) {
+          newEdges.push({
+            id: `${nodeIds[sourceIndex]}-${nodeId}`,
+            source: nodeIds[sourceIndex],
+            target: nodeId,
+            animated: true,
+            style: { stroke: '#A1A2FF', strokeWidth: 2 },
+          });
+        }
+      }
+
+      xPosition += xSpacing;
+    });
+
+    setNodes((nds) => [...nds, ...newNodes]);
+    setEdges((eds) => [...eds, ...newEdges]);
+
+    toast({
+      title: 'Flow created!',
+      description: `Added ${newNodes.length} nodes to canvas`,
+      status: 'success',
+      duration: 3000,
+    });
+
+    // Reset and close
+    setPrompt('');
+    setSteps([]);
+    setError(null);
+    cmdPalette.onClose();
   };
 
   useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("click", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("click", handleClickOutside);
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "k" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        cmdPalette.onOpen();
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredItems, selectedResult]);
 
-
-  useEffect(() => {
-    if (searchValue.trim() === '') {
-      setFilteredItems([]);
-      return;
-    }
-
-    const searched = searcher(searchValue)
-    setFilteredItems(searched)
-    if (searched.length) {
-      setSelectedResult(searched[0].type)
-    }
-  }, [searchValue]);
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [cmdPalette]);
 
 
 
   return (
-    <Modal isOpen={cmdPalette.isOpen} onClose={cmdPalette.onClose} initialFocusRef={inputRef}>
-      <ModalOverlay bg="#00000040" />
+    <Modal
+      isOpen={cmdPalette.isOpen}
+      onClose={cmdPalette.onClose}
+      initialFocusRef={inputRef}
+      size={steps.length > 0 ? 'xl' : 'md'}
+    >
+      <ModalOverlay bg="#00000060" backdropFilter="blur(8px)" />
       <ModalContent
-        minH="50vh"
-        h="40rem"
-        maxW="30vw"
-        bg=" linear-gradient(243.86deg, rgba(38, 42, 55, 0.33) 0%, rgba(36, 55, 78, 0) 100.97%);"
-        border="0.5px solid rgba(82, 82, 111, 0.3)"
-        style={{ backdropFilter: 'blur(15px)' }}
-        boxShadow="0px 0px 40px #0003"
-        borderRadius="1rem">
-        <Flex
-          ref={listRef}
-          overflow="auto"
-          flexFlow="column"
-          align="center"
-          p="1rem"
-          borderRadius="1rem"
-        >
+        bg="linear-gradient(243.86deg, rgba(30, 30, 46, 0.95) 0%, rgba(37, 37, 53, 0.95) 100.97%)"
+        border="0.5px solid rgba(161, 162, 255, 0.3)"
+        boxShadow="0px 0px 60px rgba(161, 162, 255, 0.3)"
+        borderRadius="1.2rem"
+        p="2rem"
+      >
+        <VStack spacing="1.5rem" align="stretch">
+          <Box>
+            <Text fontSize="2rem" fontWeight="700" color="white" mb="0.5rem">
+              ✨ AI Flow Generator
+            </Text>
+            <Text fontSize="1.1rem" color="rgba(255, 255, 255, 0.7)">
+              Describe what you want to do, and I'll build it for you
+            </Text>
+          </Box>
 
           <Input
-            pos="static"
             ref={inputRef}
-            placeholder="Search for nodes"
-            value={searchValue}
-            w="90%"
-            mb="1rem"
-            variant="flushed"
-            h="4rem"
-            fontSize="1.8rem"
-            // onKeyDown={handleKeyDown} // Add this line
-            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder="e.g., convert 50% of my solana into usdc and lend it on jupiter"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            size="lg"
+            fontSize="1.2rem"
+            h="3.5rem"
+            bg="rgba(255, 255, 255, 0.05)"
+            border="1px solid rgba(255, 255, 255, 0.15)"
+            _hover={{ border: '1px solid rgba(161, 162, 255, 0.5)' }}
+            _focus={{ border: '1px solid rgba(161, 162, 255, 0.8)', boxShadow: '0 0 0 1px rgba(161, 162, 255, 0.3)' }}
+            disabled={loading}
           />
-          <List w="90%">
 
-            {!filteredItems.length && <Text fontSize="1.4rem" color="blue.400" mb="1rem" fontWeight={600}>{searchValue ? 'No results found...' : 'Start searching to get items from these categories'}</Text>
-            }
-            {filteredItems.length
-              ? filteredItems.map((item) => (
-                <ListItem
-                  key={item.type + item.title + item.level}
-                  p="1rem 1rem"
-                  borderRadius="0.75rem"
-                  _hover={{ bg: "#23213987" }}
-                  onClick={() => addNode(item.type || "stringInput")}
-                  bg={selectedResult === item.type ? "#23213987" : "transparent"}
+          {loading && (
+            <Flex align="center" justify="center" py="2rem">
+              <Spinner size="xl" color="primary.200" thickness="4px" />
+              <Text ml="1rem" fontSize="1.2rem" color="primary.200">
+                Generating flow...
+              </Text>
+            </Flex>
+          )}
+
+          {error && (
+            <Box
+              bg="rgba(255, 107, 107, 0.1)"
+              border="1px solid rgba(255, 107, 107, 0.4)"
+              borderRadius="0.8rem"
+              p="1rem"
+            >
+              <Text color="red.300" fontSize="1rem">
+                {error}
+              </Text>
+            </Box>
+          )}
+
+          {steps.length > 0 && !loading && (
+            <VStack spacing="0.8rem" align="stretch" maxH="300px" overflowY="auto">
+              {steps.map((step, index) => (
+                <Box
+                  key={index}
+                  bg="rgba(161, 162, 255, 0.08)"
+                  border="1px solid rgba(161, 162, 255, 0.3)"
+                  borderRadius="0.8rem"
+                  p="1rem"
                 >
-
-                  <Flex justify="start" align="center" gap="2rem">
-                    <Box w="1.8rem" h="1.8rem">
-                      <img src={item.icon} height="100%" width="100%" alt="Icon"/>
-                    </Box>
-
-
-                    <Text fontSize="1.6rem" color="blue.200" fontWeight={500}>
-                      {item.title}
-                    </Text>
-
-                    {item.parentTitle &&
-                      <Text fontSize="1.6rem" ml="auto" color="blue.400" fontWeight={500}>
-                        {item.parentTitle}
-                      </Text>}
-                  </Flex>
-                </ListItem>
-              ))
-              : !searchValue && (
-                <>
-                  {sidebarContent.map((item) => (
-                    <ListItem
-                      key={item.title}
-                      p="1rem 1rem"
-                      borderRadius="0.75rem"
+                  <Flex align="center" mb="0.5rem">
+                    <Text
+                      fontSize="0.9rem"
+                      fontWeight="600"
+                      color="primary.200"
+                      bg="rgba(161, 162, 255, 0.2)"
+                      px="0.6rem"
+                      py="0.2rem"
+                      borderRadius="0.4rem"
                     >
-                      <Flex justify="start" align="center" gap="2rem" opacity="0.5">
-                        <Box w="1.8rem" h="1.8rem">
-                          <img src={item.icon} height="100%" width="100%" alt="Icon"/>
-                        </Box>
-                        <Text fontSize="1.6rem" color="blue.200" fontWeight={500}>
-                          {item.title}
-                        </Text>
-                      </Flex>
-                    </ListItem>
-                  ))}
-                </>
-              )
-            }
+                      Step {index + 1}
+                    </Text>
+                    <Text ml="0.8rem" fontSize="1rem" fontWeight="600" color="white">
+                      {step.action}
+                    </Text>
+                  </Flex>
+                  <Text fontSize="0.95rem" color="rgba(255, 255, 255, 0.8)">
+                    {step.description}
+                  </Text>
+                </Box>
+              ))}
+            </VStack>
+          )}
 
-          </List>
+          <Flex justify="space-between" gap="1rem">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                cmdPalette.onClose();
+                setPrompt('');
+                setSteps([]);
+                setError(null);
+              }}
+              size="lg"
+              fontSize="1.1rem"
+            >
+              Cancel
+            </Button>
 
-        </Flex>
+            {steps.length > 0 ? (
+              <Button
+                bg="linear-gradient(135deg, #A1A2FF 0%, #7172E8 100%)"
+                color="white"
+                onClick={handleCreateFlow}
+                size="lg"
+                fontSize="1.1rem"
+                fontWeight="700"
+                _hover={{
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 8px 25px rgba(161, 162, 255, 0.4)',
+                }}
+                transition="all 0.2s"
+              >
+                Create Flow 🚀
+              </Button>
+            ) : (
+              <Button
+                bg="linear-gradient(135deg, #A1A2FF 0%, #7172E8 100%)"
+                color="white"
+                onClick={handleGenerate}
+                isLoading={loading}
+                size="lg"
+                fontSize="1.1rem"
+                fontWeight="700"
+                _hover={{
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 8px 25px rgba(161, 162, 255, 0.4)',
+                }}
+                transition="all 0.2s"
+                isDisabled={!prompt.trim()}
+              >
+                Generate ✨
+              </Button>
+            )}
+          </Flex>
+
+          <Text fontSize="0.85rem" color="rgba(255, 255, 255, 0.5)" textAlign="center">
+            Press Enter to generate • Press Esc to close
+          </Text>
+        </VStack>
       </ModalContent>
-    </Modal >
-  )
-}
+    </Modal>
+  );
+};

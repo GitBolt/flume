@@ -1,18 +1,18 @@
 /* eslint-disable @next/next/no-img-element */
-import { Flex, Text, Box, LinkBox } from "@chakra-ui/react"
+import { Flex, Text, Box } from "@chakra-ui/react"
 import Link from "next/link"
 
 const Branding = () => {
   return (
     <Link href="/">
-    <LinkBox gap="1rem" h="6rem" sx={{ justifyContent: "center", display: "flex", align: "center" }}>
-      <Box w="5rem">
+      <Flex align="center" gap="1rem" cursor="pointer">
+        <Box w="4rem" h="4rem">
           <img src="/logo.png" width="100%" height="100%" alt="Flume logo" />
-      </Box>
-        <Text fontSize="1.8rem" fontWeight={600} color="magenta.300">Flume</Text>
-    </LinkBox>
-  </Link>
-)
+        </Box>
+        <Text fontSize="2.2rem" fontWeight={700} color="primary.100">Flume</Text>
+      </Flex>
+    </Link>
+  )
 }
 
 export default Branding

@@ -32,10 +32,13 @@ Create a `.env` file in the root directory with the following variables:
 ```
 NEXT_PUBLIC_MORALIS_KEY=your_moralis_api_key_here
 NEXT_PUBLIC_OPENAI_KEY=your_openai_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 - Get your Moralis API key from [https://moralis.io](https://moralis.io)
 - Get your OpenAI API key from [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+
+**Note:** `OPENAI_API_KEY` is used for AI Flow Generation (server-side), while `NEXT_PUBLIC_OPENAI_KEY` is used for folder AI assistant (client-side).
 
 ## Wallet Portfolio Feature
 When you connect your wallet, the application automatically fetches and displays all your assets from Solana mainnet using the Moralis API. Your portfolio will be visualized as beautiful, iPhone-style app icons in the playground:
@@ -60,6 +63,36 @@ When you connect your wallet, the application automatically fetches and displays
 - **Smooth Animations**: Hover and drag animations for a native app feel
 
 The apps are automatically arranged when your wallet connects. No manual action required!
+
+## AI Flow Generator
+
+Press **Ctrl+K** (or **Cmd+K** on Mac) to open the AI flow generator and describe what you want to build:
+
+### How It Works
+Simply describe your DeFi workflow in natural language, and the AI will automatically generate the complete flow with all necessary nodes and connections.
+
+**Examples of AI Flow Requests:**
+- "convert 50% of my solana into usdc and lend it on jupiter"
+- "swap 1 SOL to USDC then stake it"
+- "get my balance and swap half to USDT"
+- "buy 100 USDC worth of JUP and stake it"
+- "check SOL price and if it's above 100, swap to USDC"
+
+**Usage:**
+1. Press **Ctrl+K** / **Cmd+K** to open AI generator
+2. Describe your workflow in plain English
+3. Press **Enter** to generate the flow
+4. Review the AI-generated steps
+5. Press **Enter** again or click **"Create Flow 🚀"** to add to canvas
+6. Execute the flow when ready!
+
+**Features:**
+- ✨ Natural language understanding powered by GPT-4o
+- 🔗 Automatically connects nodes with edges
+- ⚡ Supports 90+ DeFi actions across protocols (Jupiter, Adrena, Drift, Raydium, Orca, etc.)
+- 📊 Visual preview of all steps before creating
+- 🎯 Smart parameter detection and configuration
+- 🚀 Single interface - no separate search mode
 
 ### AI-Powered Actions
 Each folder has an AI Assistant input field **directly below it on the canvas** (not inside the modal). Simply type what you want to do with your assets:
