@@ -65,7 +65,7 @@ const Sidebar = ({ sidebarContent }: Props) => {
         flexFlow: "column",
         boxShadow: "3px 0px 15px rgba(0, 0, 0, 0.36)",
         zIndex: 3,
-        borderRadius: "0 5rem 5rem 0",
+        // borderRadius: "0 5rem 5rem 0",
         overflowY: "auto",
         overflowX: "hidden",
         py: "2rem",
@@ -101,7 +101,7 @@ const Sidebar = ({ sidebarContent }: Props) => {
 
       <Flex sx={{
         w: "75%",
-        background: "bg.200",
+        background: "#0b0b15",
         borderRight: "1px solid",
         borderColor: "gray.100",
         flexFlow: "column",
@@ -110,7 +110,7 @@ const Sidebar = ({ sidebarContent }: Props) => {
         overflowX: "hidden",
       }}>
         <Box position="sticky" top="0" bg="bg.100" zIndex={2}>
-          <Flex w="100%" borderRadius="2rem 2rem 0 0" h="4rem" align="center" justify="center" bg="bg.300">
+          <Flex w="100%" borderRadius="2rem 2rem 0 0" h="4rem" align="center" justify="center" bg="#0b0b15">
             <Text color="#FFFFFF" fontWeight={700} fontSize="1.8rem">
               Actions
             </Text>
@@ -122,7 +122,7 @@ const Sidebar = ({ sidebarContent }: Props) => {
             {selectedItemTitle && sidebarContent.find((item) => item.title == selectedItemTitle)!.items.map((item, index) => (
                 <Box
                     key={item.title}
-                    bg="bg.200"
+                    bg="bg.400"
                     p="4"
                     borderRadius="xl"
                     cursor="pointer"
@@ -143,11 +143,12 @@ const Sidebar = ({ sidebarContent }: Props) => {
                         <Box w="12" h="12" bg="bg.400" borderRadius="xl" p="2" display="flex" alignItems="center" justifyContent="center">
                              {item.icon ? <img src={item.icon} alt={item.title} /> : <Box w="100%" h="100%" bg="blue.400" borderRadius="full" />}
                         </Box>
-                        <Text color="#FFFFFF" fontWeight="bold" fontSize="lg" textAlign="center">{item.title}</Text>
+                        <Text color="#FFFFFF" fontWeight="bold" fontSize="1.5rem" textAlign="center">{item.title}</Text>
                         <Button 
                             size="sm" 
                             colorScheme="blue" 
                             w="full" 
+                            fontSize="1.5rem"
                             variant="outline"
                             isLoading={installing === item.title}
                             loadingText="Adding"

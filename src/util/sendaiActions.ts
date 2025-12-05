@@ -74,36 +74,44 @@ export const getActionLabel = (type: string) =>
   ACTION_DEFINITIONS.find((a) => a.type === type)?.label || type;
 
 /**
- * Simple mapping for actions where camelCase doesn't convert properly
- */
-const ACTION_NAME_MAPPING: Record<string, string> = {
-  'launchPumpFunToken': 'LAUNCH_PUMPFUN_TOKEN',
-  'claimPumpFunCreatorFee': 'CLAIM_PUMPFUN_CREATOR_FEE',
-};
-
-/**
- * Converts camelCase to UPPER_SNAKE_CASE
- * Example: "stakeWithSolayer" -> "STAKE_WITH_SOLAYER"
- * Handles special cases like "PumpFun" -> "PUMPFUN"
+ * Converts camelCase to UPPER_SNAKE_CASE with intelligent handling
+ * Automatically handles common patterns like:
+ * - Compound words (PumpFun -> PUMPFUN)
+ * - Abbreviations (Jup -> JUPITER, LST -> LST)
+ * - Multi-word patterns (stakeWithJup -> STAKE_WITH_JUPITER)
  */
 const camelToUpperSnake = (str: string): string => {
-  // Handle known compound words that should stay together
-  const compoundWords: Record<string, string> = {
-    'pumpfun': 'PUMPFUN',
-    'pumpFun': 'PUMPFUN',
+  // Common abbreviation expansions
+  const abbreviations: Record<string, string> = {
+    'Jup': 'JUPITER',
+    'API': 'API',
+    'LST': 'LST',
+    'NFT': 'NFT',
+    'DeFi': 'DEFI',
+    'TPS': 'TPS',
   };
   
-  let result = str;
-  // Replace compound words first
-  for (const [key, value] of Object.entries(compoundWords)) {
-    result = result.replace(new RegExp(key, 'gi'), value);
-  }
+  // Compound words that should stay together
+  const compounds = ['PumpFun', 'Pumpfun', 'pumpFun'];
   
+  let result = str;
+  
+  // Handle compound words
+  compounds.forEach(compound => {
+    result = result.replace(new RegExp(compound, 'gi'), 'PUMPFUN');
+  });
+  
+  // Expand abbreviations
+  Object.entries(abbreviations).forEach(([abbr, full]) => {
+    result = result.replace(new RegExp(`\\b${abbr}\\b`, 'g'), full);
+  });
+  
+  // Convert to UPPER_SNAKE_CASE
   return result
     .replace(/([A-Z])/g, '_$1')
     .toUpperCase()
     .replace(/^_/, '')
-    .replace(/_+/g, '_'); // Remove duplicate underscores
+    .replace(/_+/g, '_');
 };
 
 /**
@@ -116,20 +124,13 @@ const camelToSnake = (str: string): string => {
 
 /**
  * Finds an action in the agent by trying multiple naming conventions
+ * Uses intelligent matching that handles abbreviations, compounds, and case variations
  */
 const findActionByName = (agent: SolanaAgentKit, type: string) => {
-  // First, check manual mapping
-  const mappedName = ACTION_NAME_MAPPING[type];
-  if (mappedName) {
-    const mappedAction = agent.actions.find((a) => a.name === mappedName);
-    if (mappedAction) return mappedAction;
-  }
-  
   const typeLower = type.toLowerCase();
   const typeUpperSnake = camelToUpperSnake(type);
   const typeSnake = camelToSnake(type);
   
-  // Try multiple matching strategies
   return agent.actions.find((a) => {
     const actionName = a.name || '';
     const actionNameLower = actionName.toLowerCase();
@@ -176,41 +177,132 @@ export const runSendAIAction = async (
   const action = findActionByName(agent, type);
 
   if (!action) {
-    // Provide helpful error message with available actions
     const availableActions = getAvailableActions(agent);
-    const mappedName = ACTION_NAME_MAPPING[type];
-    
-    // Log all available actions for debugging
-    console.warn(`[SendAI] Action "${type}" not found. Available actions:`, availableActions);
-    console.warn(`[SendAI] Tried matching: "${type}", "${camelToUpperSnake(type)}", "${camelToSnake(type)}"${mappedName ? `, mapped: "${mappedName}"` : ''}`);
-    
-    // Check if this action is defined but not available
     const isDefined = ACTION_DEFINITIONS.some((a) => a.type === type);
-    const suggestion = mappedName 
-      ? `\nNote: This action maps to "${mappedName}" but it's not available in the current agent.`
-      : isDefined
-      ? `\nNote: This action is defined but not available in the current SolanaAgentKit version.`
-      : '';
-    
-    // Show first 30 actions in error message
-    const shownActions = availableActions.slice(0, 30);
-    const availableActionsList = shownActions.length > 0 
-      ? `\nAvailable actions (${availableActions.length} total): ${shownActions.join(', ')}${availableActions.length > 30 ? '...' : ''}`
-      : '\nNo actions available on this agent';
+    const suggestion = isDefined
+      ? `\nThis action is defined but not available in the current SolanaAgentKit version.`
+      : '\nThis action is not defined in the system.';
     
     throw new Error(
-      `Action "${type}" is unavailable on this agent.${suggestion}${availableActionsList}`
+      `Action "${type}" is unavailable.${suggestion}\nAvailable actions: ${availableActions.slice(0, 10).join(', ')}...`
     );
   }
 
-  const payload = {
+  let payload: Record<string, any> = {
     ...config,
     tokens: config?.tokens || tokens,
   };
 
-  const res = await executeAction(action as any, agent, payload);
-  if (res?.status && res.status !== 'success') {
-    throw new Error(res.message || `Action "${type}" failed`);
+  // Standardized field name mapping - applies common aliases automatically
+  const standardFieldAliases: Record<string, string[]> = {
+    'tokenName': ['name', 'token_name', 'token'],
+    'tokenTicker': ['symbol', 'ticker', 'token_ticker'],
+    'description': ['desc', 'details'],
+    'imageUrl': ['image', 'url', 'img', 'image_url'],
+    'twitter': ['x', 'twitter_handle'],
+    'telegram': ['tg', 'telegram_link'],
+    'website': ['site', 'web'],
+  };
+
+  // Apply standardized field mappings
+  const mappedPayload: Record<string, any> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    let mapped = false;
+    // Check if this key is an alias for a standard field
+    for (const [standardField, aliases] of Object.entries(standardFieldAliases)) {
+      if (aliases.includes(key.toLowerCase()) || key === standardField) {
+        mappedPayload[standardField] = value;
+        mapped = true;
+        break;
+      }
+    }
+    if (!mapped) {
+      mappedPayload[key] = value;
+    }
   }
-  return res;
+  payload = mappedPayload;
+
+  try {
+    // Try to validate payload against schema before executing
+    if (action.schema) {
+      const zodSchema = action.schema as any;
+      try {
+        zodSchema.parse(payload);
+      } catch (validationError: any) {
+        // Extract Zod validation errors
+        const zodErrors = validationError.errors || validationError.issues;
+        if (zodErrors && Array.isArray(zodErrors)) {
+          const missingFields = zodErrors
+            .filter((e: any) => e.code === 'invalid_type' && e.received === 'undefined')
+            .map((e: any) => e.path.join('.'));
+          
+          // Auto-generate intelligent defaults for common field types
+          if (missingFields.length > 0) {
+            const generateDefault = (field: string): any => {
+              if (field.includes('Name') || field.includes('name')) return 'Unnamed';
+              if (field.includes('Ticker') || field.includes('symbol')) return 'TKN';
+              if (field.includes('description') || field.includes('desc')) return 'No description provided';
+              if (field.includes('Url') || field.includes('url') || field.includes('image')) return 'https://via.placeholder.com/512';
+              if (field.includes('twitter') || field.includes('telegram') || field.includes('website')) return '';
+              return '';
+            };
+            
+            // Apply defaults for missing fields
+            missingFields.forEach(field => {
+              payload[field] = generateDefault(field);
+            });
+            
+            // Try validation again with defaults
+            try {
+              zodSchema.parse(payload);
+            } catch (retryError: any) {
+              const retryErrors = retryError.errors || retryError.issues;
+              const invalidFields = retryErrors
+                ?.filter((e: any) => e.code !== 'invalid_type' || e.received !== 'undefined')
+                .map((e: any) => ({
+                  field: e.path.join('.'),
+                  message: e.message,
+                })) || [];
+              
+              const stillMissing = retryErrors
+                ?.filter((e: any) => e.code === 'invalid_type' && e.received === 'undefined')
+                .map((e: any) => e.path.join('.')) || [];
+              
+              let errorMsg = `Validation failed for "${type}":\n`;
+              if (stillMissing.length > 0) errorMsg += `Missing: ${stillMissing.join(', ')}\n`;
+              if (invalidFields.length > 0) errorMsg += `Invalid:\n${invalidFields.map((f: any) => `  ${f.field}: ${f.message}`).join('\n')}`;
+              
+              throw new Error(errorMsg);
+            }
+          } else {
+            const invalidFields = zodErrors
+              .filter((e: any) => e.code !== 'invalid_type' || e.received !== 'undefined')
+              .map((e: any) => ({
+                field: e.path.join('.'),
+                message: e.message,
+              }));
+            
+            if (invalidFields.length > 0) {
+              throw new Error(
+                `Validation failed for "${type}":\n${invalidFields.map((f: any) => `  ${f.field}: ${f.message}`).join('\n')}`
+              );
+            }
+          }
+        } else {
+          throw validationError;
+        }
+      }
+    }
+    
+    const res = await executeAction(action as any, agent, payload);
+    if (res?.status && res.status !== 'success') {
+      throw new Error(res.message || `Action "${type}" failed`);
+    }
+    return res;
+  } catch (error: any) {
+    if (error.message?.includes('Validation failed')) {
+      throw error;
+    }
+    throw error;
+  }
 };

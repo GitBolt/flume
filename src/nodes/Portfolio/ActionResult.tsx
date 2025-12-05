@@ -9,6 +9,7 @@ interface ActionResultData {
   status: 'success' | 'error' | 'processing';
   timestamp: string;
   transactionSignature?: string | null;
+  returnData?: string | null;
 }
 
 const ActionResult: FC<NodeProps & { data: ActionResultData }> = ({ data, selected }) => {
@@ -170,6 +171,55 @@ const ActionResult: FC<NodeProps & { data: ActionResultData }> = ({ data, select
             View on Solscan →
           </Text>
         </Link>
+      )}
+
+      {/* Return Data */}
+      {data.returnData && (
+        <VStack spacing="4px" w="220px" align="stretch">
+          <Text color="rgba(255, 255, 255, 0.5)" fontSize="0.75rem" fontWeight="600" letterSpacing="0.5px">
+            RETURN DATA
+          </Text>
+          <Box
+            bg="rgba(0, 0, 0, 0.4)"
+            backdropFilter="blur(10px)"
+            px="12px"
+            py="10px"
+            borderRadius="12px"
+            border="0.5px solid rgba(161, 162, 255, 0.3)"
+            maxH="200px"
+            overflowY="auto"
+            overflowX="hidden"
+            css={{
+              '&::-webkit-scrollbar': {
+                width: '6px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: 'rgba(0, 0, 0, 0.2)',
+                borderRadius: '10px',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: 'rgba(161, 162, 255, 0.5)',
+                borderRadius: '10px',
+                '&:hover': {
+                  background: 'rgba(161, 162, 255, 0.7)',
+                },
+              },
+            }}
+          >
+            <Text
+              as="pre"
+              color="rgba(255, 255, 255, 0.9)"
+              fontSize="0.75rem"
+              fontFamily="monospace"
+              whiteSpace="pre-wrap"
+              wordBreak="break-word"
+              lineHeight="1.5"
+              m="0"
+            >
+              {data.returnData}
+            </Text>
+          </Box>
+        </VStack>
       )}
     </VStack>
   );

@@ -20,7 +20,7 @@ const categoryLogos: Record<string, string> = {
   'Pumpfun': '/logos/pump.jpg',
   'Pyth': '/logos/pyth.png',
   'Rugcheck': '/logos/rugcheck.jpg',
-  'Solutiofi': '/icons/Crypto.svg',
+  'Solutiofi': '/logos/solutiofi.jpg',
 };
 
 const groupByCategory = () => {

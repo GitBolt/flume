@@ -46,25 +46,21 @@ const Edge = ({
 
   };
   return (
-    <>
-      <path
-        id={id}
-        style={style}
-        className="react-flow__edge-path"
-        d={edgePath}
-        markerEnd={markerEnd}
-      />
-      <foreignObject
-        width={foreignObjectSize}
-        height={foreignObjectSize}
-        x={labelX - foreignObjectSize / 2}
-        y={labelY - foreignObjectSize / 2}
-        className="edgebutton-foreignobject"
-        requiredExtensions="http://www.w3.org/1999/xhtml"
-      >
-        <CloseButton onClick={(event) => onEdgeClick(event, id)} color="magenta.300" size="lg" />
-      </foreignObject>
-    </>
+    <path
+      id={id}
+      style={style}
+      className="react-flow__edge-path"
+      d={edgePath}
+      markerEnd={markerEnd}
+      onClick={(event) => {
+        event.stopPropagation();
+        setEdges((eds) => eds.filter((e) => e.id !== id));
+        const edge = getEdge(id);
+        if (edge && edge.target && edge.source) {
+          removeNodeData(edge.target, edge.source);
+        }
+      }}
+    />
   );
 }
 

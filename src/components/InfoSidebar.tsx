@@ -43,6 +43,54 @@ export const InfoSidebar = () => {
     return null;
   };
 
+  const extractReturnData = (res: any): any => {
+    if (!res) return null;
+    
+    // If res has data field, use that
+    if (res.data !== undefined && res.data !== null) {
+      return res.data;
+    }
+    
+    // If res itself is an object with meaningful data (not just status/message)
+    if (typeof res === 'object' && res !== null) {
+      // Exclude common metadata fields
+      const excludeFields = ['status', 'message', 'signature', 'transaction', 'transactions', 'error', 'errors'];
+      const dataFields = Object.keys(res).filter(key => !excludeFields.includes(key));
+      
+      if (dataFields.length > 0) {
+        // Return the object with only data fields
+        const dataObj: any = {};
+        dataFields.forEach(key => {
+          dataObj[key] = res[key];
+        });
+        return Object.keys(dataObj).length > 0 ? dataObj : null;
+      }
+    }
+    
+    return null;
+  };
+
+  const formatReturnData = (data: any): string => {
+    if (data === null || data === undefined) return '';
+    
+    // If it's already a string, try to parse it as JSON
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        return data;
+      }
+    }
+    
+    // If it's an object, stringify it nicely
+    if (typeof data === 'object') {
+      return JSON.stringify(data, null, 2);
+    }
+    
+    return String(data);
+  };
+
   const gatherTokens = (nodeData: Record<string, any>): FlowToken[] => {
     const assets = extractAssetsFromNodeData(nodeData || {});
     return assets.flatMap((asset) => {
@@ -57,11 +105,15 @@ export const InfoSidebar = () => {
     label: string,
     status: 'success' | 'error',
     message: string,
-    signature?: string | null
+    signature?: string | null,
+    returnData?: any
   ) => {
     const sourceNode = getNodes().find((n) => n.id === nodeId);
     const pos = sourceNode?.position || { x: 0, y: 0 };
     const resultNodeId = createNodeId();
+
+    // Format return data if present
+    const formattedData = returnData ? formatReturnData(returnData) : null;
 
     setNodes((nds) => [
       ...nds,
@@ -75,6 +127,7 @@ export const InfoSidebar = () => {
           status,
           timestamp: new Date().toISOString(),
           transactionSignature: signature || null,
+          returnData: formattedData,
         },
       },
     ]);
@@ -130,10 +183,11 @@ export const InfoSidebar = () => {
           const res = await runSendAIAction(nodeType, tokens, config, agent);
           console.log(`Node ${node.id} result:`, res);
           const signature = extractSignature(res);
+          const returnData = extractReturnData(res);
           if (res?.status && res.status !== 'success') {
             throw new Error(res.message || `${label} returned an error`);
           }
-          appendResult(node.id, label, 'success', `${label} executed`, signature);
+          appendResult(node.id, label, 'success', `${label} executed`, signature, returnData);
         } catch (err: any) {
           console.error(`Node ${node.id} error:`, err);
           appendResult(node.id, label, 'error', err.message || 'Failed to execute');

@@ -16,7 +16,7 @@ export const Navbar = ({
 }: Props) => {
 
   return (
-    <Flex w="100%" px="2rem" h="6rem" zIndex="5" bg="bg.200" pos="static" top="0" align="center" justify="space-between" gap="1rem">
+    <Flex w="100%" px="2rem" h="6rem" zIndex="5" bg="bg.300" pos="static" top="0" align="center" justify="space-between" gap="1rem">
       <Branding />
       <Wallets />
     </Flex>

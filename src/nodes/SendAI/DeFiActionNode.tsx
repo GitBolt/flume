@@ -34,12 +34,17 @@ import { getActionLabel, runSendAIAction, SendAIActionType } from '@/util/sendai
 
 const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
   const [loading, setLoading] = useState(false);
-  const { setNodes, setEdges, getNode } = useReactFlow();
+  const { setNodes, setEdges, getNode, getEdges } = useReactFlow();
   const nodeId = useNodeId();
   const toast = useToast();
   const wallet = useWallet();
   const { connection } = useConnection();
   const currentNode = nodeId ? getNode(nodeId) : null;
+  
+  // Determine if this is first/last node in flow
+  const edges = getEdges();
+  const hasIncomingEdges = edges.some(edge => edge.target === nodeId);
+  const hasOutgoingEdges = edges.some(edge => edge.source === nodeId);
 
   const [config, setConfig] = useState<Record<string, any>>(() => data?.config || {});
   const [tokens, setTokens] = useState<FlowToken[]>([]);
@@ -98,10 +103,14 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
   const appendResultNode = (
     status: 'success' | 'error',
     message: string,
-    signature?: string | null
+    signature?: string | null,
+    returnData?: any
   ) => {
     const currentPos = currentNode?.position || { x: 0, y: 0 };
     const resultNodeId = createNodeId();
+
+    // Format return data if present
+    const formattedData = returnData ? formatReturnData(returnData) : null;
 
     setNodes((nds) => [
       ...nds,
@@ -115,6 +124,7 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
           status,
           timestamp: new Date().toISOString(),
           transactionSignature: signature || null,
+          returnData: formattedData,
         },
       },
     ]);
@@ -142,6 +152,54 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
       return res.transactions[0];
     }
     return null;
+  };
+
+  const extractReturnData = (res: any): any => {
+    if (!res) return null;
+    
+    // If res has data field, use that
+    if (res.data !== undefined && res.data !== null) {
+      return res.data;
+    }
+    
+    // If res itself is an object with meaningful data (not just status/message)
+    if (typeof res === 'object' && res !== null) {
+      // Exclude common metadata fields
+      const excludeFields = ['status', 'message', 'signature', 'transaction', 'transactions', 'error', 'errors'];
+      const dataFields = Object.keys(res).filter(key => !excludeFields.includes(key));
+      
+      if (dataFields.length > 0) {
+        // Return the object with only data fields
+        const dataObj: any = {};
+        dataFields.forEach(key => {
+          dataObj[key] = res[key];
+        });
+        return Object.keys(dataObj).length > 0 ? dataObj : null;
+      }
+    }
+    
+    return null;
+  };
+
+  const formatReturnData = (data: any): string => {
+    if (data === null || data === undefined) return '';
+    
+    // If it's already a string, try to parse it as JSON
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        return data;
+      }
+    }
+    
+    // If it's an object, stringify it nicely
+    if (typeof data === 'object') {
+      return JSON.stringify(data, null, 2);
+    }
+    
+    return String(data);
   };
 
   const buildConfigFromInputs = (): Record<string, any> => {
@@ -215,7 +273,8 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
       const res = await runSendAIAction(type as SendAIActionType, tokens, parsedConfig, agent);
 
       const signature = extractSignature(res);
-      appendResultNode('success', `${label} executed`, signature);
+      const returnData = extractReturnData(res);
+      appendResultNode('success', `${label} executed`, signature, returnData);
       toast({
         title: `${label} executed`,
         status: 'success',
@@ -238,24 +297,30 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
   return (
     <>
       <Box position="relative">
-        <CustomHandle
-          pos="left"
-          type="target"
-          id="token"
-          style={{ 
-            left: '-4px',
-            top: '49px'
-          }}
-        />
-        <CustomHandle
-          pos="right"
-          type="source"
-          id="output"
-          style={{ 
-            right: '-4px',
-            top: '49px'
-          }}
-        />
+        {/* Only show left handle if node has incoming edges (not first in flow) */}
+        {hasIncomingEdges && (
+          <CustomHandle
+            pos="left"
+            type="target"
+            id="token"
+            style={{ 
+              left: '-4px',
+              top: '49px'
+            }}
+          />
+        )}
+        {/* Only show right handle if node has outgoing edges (not last in flow) */}
+        {hasOutgoingEdges && (
+          <CustomHandle
+            pos="right"
+            type="source"
+            id="output"
+            style={{ 
+              right: '-4px',
+              top: '49px'
+            }}
+          />
+        )}
         
         <VStack spacing="8px" cursor="grab" userSelect="none">
           <Flex
