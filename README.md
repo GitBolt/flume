@@ -11,6 +11,9 @@ Flume is a visual automation board for Solana. You drop your wallet assets onto 
   - [Architecture](#architecture)
     - [Tech Stack](#tech-stack)
   - [Node System](#node-system)
+    - [Portfolio Nodes](#portfolio-nodes)
+    - [SendAI Action Nodes](#sendai-action-nodes)
+    - [Execution Feedback Nodes](#execution-feedback-nodes)
     - [Handles \& Data Flow](#handles--data-flow)
   - [AI Flow Generation](#ai-flow-generation)
   - [Running a Flow](#running-a-flow)
@@ -54,9 +57,9 @@ The core value: everything stays on one canvas. Assets, AI-generated actions, ma
 
 ### Tech Stack
 
-- Next.js 14 (App Router not in use; classic `pages/` directory)
+- Next.js 14 
 
-- Chakra UI for the component system + theming
+- Chakra UI for the component system
 
 - React Flow v11 for node/edge orchestration
 
@@ -68,11 +71,17 @@ The core value: everything stays on one canvas. Assets, AI-generated actions, ma
 
 ## Node System
 
-| Category | Nodes | Purpose |
-| --- | --- | --- |
-| Portfolio | `walletBalance`, `tokenCard`, `nftCard`, `folder`, `actionResult` | Visualize holdings, group them, and display execution feedback. Wallet + tokens can feed balances into action nodes through custom handles. |
-| SendAI Actions | Generated from action definitions (Jupiter, Drift, Solayer, Pump.fun, Sanctum, Solana core, etc.) | Each action type mounts with a label, emoji, config panel, and run controls. The list is centrally defined so adding a new action is metadata-driven. |
-| Execution Feedback | `ActionResult` nodes | Created on success/failure from both DeFi nodes and InfoSidebar runs; show status badges, timestamps, Solscan links, and optional structured return data. |
+### Portfolio Nodes
+
+- **`walletBalance`**, **`tokenCard`**, **`nftCard`**, **`folder`**, **`actionResult`**: Visualize holdings, group them, and display execution feedback. Wallet + tokens can feed balances into action nodes through custom handles.
+
+### SendAI Action Nodes
+
+- Generated from action definitions (Jupiter, Drift, Solayer, Pump.fun, Sanctum, Solana core, etc.). Each action type mounts with a label, emoji, config panel, and run controls. The list is centrally defined so adding a new action is metadata-driven.
+
+### Execution Feedback Nodes
+
+- **`ActionResult`** nodes: Created on success/failure from both DeFi nodes and InfoSidebar runs; show status badges, timestamps, Solscan links, and optional structured return data.
 
 ### Handles & Data Flow
 
