@@ -1,15 +1,19 @@
-<p align="center">
-  <img
-    alt="Flume"
-    src="./public/og.png"
-    width="160"
-  />
-</p>
-
 # Flume
 
-Flume is a visual automation board for Solana. You drop your wallet assets onto a canvas that looks like an iPhone home screen, describe the DeFi sequence you want, and Flume wires the swaps, transfers, stakes, and on-chain checks into a single executable flow.
+Flume is a visual automation board for Solana. You drop your wallet assets onto a canvas that looks like an smartphone home screen, describe the DeFi sequence you want, and Flume wires the swaps, transfers, stakes, and on-chain checks into a single executable flow.
 
+## Table of Contents
+
+- [Flume](#flume)
+  - [Table of Contents](#table-of-contents)
+  - [Product Overview](#product-overview)
+  - [Core Features](#core-features)
+  - [Architecture](#architecture)
+  - [Node System](#node-system)
+  - [AI Flow Generation](#ai-flow-generation)
+  - [Running a Flow](#running-a-flow)
+  - [Getting Started](#getting-started)
+    - [Environment Variables](#environment-variables)
 
 ## Product Overview
 
