@@ -69,7 +69,7 @@ export default async function handler(req: NextRequest) {
   }
 
   try {
-    const { prompt } = await req.json();
+    const { prompt, userAssets } = await req.json();
 
     if (!prompt || typeof prompt !== 'string') {
       return new Response(
@@ -78,16 +78,39 @@ export default async function handler(req: NextRequest) {
       );
     }
 
+    // Build user assets context for AI
+    let userAssetsContext = '';
+    if (userAssets) {
+      userAssetsContext = `\n\nUser's Current Assets:\n`;
+      userAssetsContext += `- SOL: ${userAssets.sol}\n`;
+      if (userAssets.tokens && userAssets.tokens.length > 0) {
+        userAssetsContext += `- Tokens:\n`;
+        userAssets.tokens.forEach((t: any) => {
+          userAssetsContext += `  * ${t.symbol} (${t.mint}): ${t.amount} (${t.decimals} decimals)\n`;
+        });
+      }
+      userAssetsContext += `\nYou can reference these assets directly. For example, if user wants to swap "100 USDC", use the USDC from their tokens. Don't use get_balance actions unless specifically needed.`;
+    }
+
     const result = await generateText({
       model: openai('gpt-4o'),
-      system: SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT + userAssetsContext,
       prompt: prompt,
       temperature: 0.3,
       maxTokens: 2000,
     });
 
     // Extract the text and validate it's valid JSON
-    const responseText = result.text.trim();
+    let responseText = result.text.trim();
+    
+    // Strip markdown code blocks if present
+    if (responseText.startsWith('```')) {
+      // Remove ```json or ``` at the start
+      responseText = responseText.replace(/^```(?:json)?\s*\n/, '');
+      // Remove trailing ```
+      responseText = responseText.replace(/\n```\s*$/, '');
+      responseText = responseText.trim();
+    }
     
     // Try to parse to ensure it's valid JSON before sending
     try {

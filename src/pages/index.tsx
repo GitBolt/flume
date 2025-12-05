@@ -4,13 +4,14 @@ import { Flex, useToast } from "@chakra-ui/react";
 import Sidebar from "@/layouts/Sidebar";
 import { sidebarContent } from "@/util/sidebarContent";
 import { CommandPalette } from "@/components/CommandPalette";
+import { InfoSidebar } from "@/components/InfoSidebar";
 import { Navbar } from "@/layouts/Navbar";
 import { useEdgesState, useNodesState } from "reactflow";
-import { FlowExecutor } from "@/components/FlowExecutor";
 import { useEffect, useState, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { fetchWalletPortfolio } from "@/services/moralis";
 import { createNodeId } from "@/util/randomData";
+import { usePortfolio } from "@/context/portfolioContext";
 
 const Home: NextPage = () => {
 
@@ -21,6 +22,7 @@ const Home: NextPage = () => {
   
   const { publicKey, connected } = useWallet();
   const toast = useToast();
+  const { setPortfolio } = usePortfolio();
 
   useEffect(() => {
     const loadPortfolio = async () => {
@@ -49,12 +51,19 @@ const Home: NextPage = () => {
         const ySpacing = 140;
         let xPosition = 450;
         const appsPerRow = 5; // iPhone-like grid: 5 apps per row
+        
+        // Helper to add small random offset for fun look
+        const randomOffset = () => ({
+          x: (Math.random() - 0.5) * 20, // Random offset between -10 and +10
+          y: (Math.random() - 0.5) * 20,
+        });
 
         // Add wallet balance node
+        const walletOffset = randomOffset();
         newNodes.push({
           id: createNodeId(),
           type: 'walletBalance',
-          position: { x: xPosition, y: yPosition },
+          position: { x: xPosition + walletOffset.x, y: yPosition + walletOffset.y },
           data: portfolio.nativeBalance,
         });
 
@@ -68,10 +77,11 @@ const Home: NextPage = () => {
             xPosition = 450;
           }
 
+          const offset = randomOffset();
           newNodes.push({
             id: createNodeId(),
             type: 'tokenCard',
-            position: { x: xPosition, y: yPosition },
+            position: { x: xPosition + offset.x, y: yPosition + offset.y },
             data: token,
           });
 
@@ -86,10 +96,11 @@ const Home: NextPage = () => {
             xPosition = 450;
           }
 
+          const offset = randomOffset();
           newNodes.push({
             id: createNodeId(),
             type: 'nftCard',
-            position: { x: xPosition, y: yPosition },
+            position: { x: xPosition + offset.x, y: yPosition + offset.y },
             data: nft,
           });
 
@@ -98,6 +109,13 @@ const Home: NextPage = () => {
 
         setNodes((existingNodes) => [...existingNodes, ...newNodes]);
         setHasLoadedPortfolio(true);
+        
+        // Store portfolio in context for AI to use
+        setPortfolio({
+          nativeBalance: portfolio.nativeBalance,
+          tokens: portfolio.tokens,
+          nfts: portfolio.nfts,
+        });
         
         toast({
           title: 'Portfolio loaded',
@@ -228,6 +246,7 @@ const Home: NextPage = () => {
         <Navbar pgName={pgName} setPgName={setPgName}/>
         <Sidebar sidebarContent={sidebarContent} />
         <CommandPalette />
+        <InfoSidebar />
         <Playground
           edges={edges}
           nodes={nodes}
@@ -239,7 +258,6 @@ const Home: NextPage = () => {
           onEdgeChange={onEdgesChange}
           onNodeDragStop={handleNodeDragStop}
         />
-        <FlowExecutor />
       </Flex>
     </>
   );

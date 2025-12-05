@@ -10,6 +10,7 @@ import { ReactFlowProvider } from 'reactflow'
 import { Wallet } from "@/context/walletContext";
 import { NetworkProvider } from '@/context/configContext';
 import { ModalProvider } from '@/context/modalContext';
+import { PortfolioProvider } from '@/context/portfolioContext';
 import { DefaultHead } from '@/layouts/DefaultHead';
 import { ThemeProvider } from '@/context/themeContext';
 
@@ -20,10 +21,12 @@ export default function FlumeApp({ Component, pageProps }: AppProps) {
         <ThemeProvider>
           <ReactFlowProvider>
             <NetworkProvider>
-              <ModalProvider>
-                <DefaultHead />
-                <Component {...pageProps} />
-              </ModalProvider>
+              <PortfolioProvider>
+                <ModalProvider>
+                  <DefaultHead />
+                  <Component {...pageProps} />
+                </ModalProvider>
+              </PortfolioProvider>
             </NetworkProvider>
           </ReactFlowProvider>
         </ThemeProvider>

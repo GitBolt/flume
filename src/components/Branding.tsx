@@ -9,7 +9,7 @@ const Branding = () => {
         <Box w="4rem" h="4rem">
           <img src="/logo.png" width="100%" height="100%" alt="Flume logo" />
         </Box>
-        <Text fontSize="2.2rem" fontWeight={700} color="primary.100">Flume</Text>
+        <Text fontSize="2.4rem" fontWeight={700} color="#FFFFFF" letterSpacing="-0.5px">Flume</Text>
       </Flex>
     </Link>
   )

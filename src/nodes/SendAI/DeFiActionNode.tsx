@@ -18,6 +18,12 @@ import {
   Textarea,
   useDisclosure,
   Divider,
+  Input,
+  NumberInput,
+  NumberInputField,
+  FormControl,
+  FormLabel,
+  HStack,
 } from '@chakra-ui/react';
 import { CustomHandle } from '@/layouts/CustomHandle';
 import { createNodeId } from '@/util/randomData';
@@ -39,6 +45,15 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
   const [tokens, setTokens] = useState<FlowToken[]>([]);
   const [configText, setConfigText] = useState('');
   const { isOpen, onOpen, onClose } = useDisclosure();
+  
+  // Input field values
+  const [inputAmount, setInputAmount] = useState<string>(config.inputAmount?.toString() || '');
+  const [outputMint, setOutputMint] = useState<string>(config.outputMint || '');
+  const [inputMint, setInputMint] = useState<string>(config.inputMint || '');
+  const [slippageBps, setSlippageBps] = useState<string>(config.slippageBps?.toString() || '50');
+  const [amount, setAmount] = useState<string>(config.amount?.toString() || '');
+  const [leverage, setLeverage] = useState<string>(config.leverage?.toString() || '');
+  const [ticker, setTicker] = useState<string>(config.ticker || '');
 
   useEffect(() => {
     if (!currentNode) return;
@@ -53,6 +68,14 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
 
   useEffect(() => {
     setConfigText(JSON.stringify(config && Object.keys(config).length ? config : { tokens }, null, 2));
+    // Sync input fields with config
+    if (config.inputAmount) setInputAmount(config.inputAmount.toString());
+    if (config.outputMint) setOutputMint(config.outputMint);
+    if (config.inputMint) setInputMint(config.inputMint);
+    if (config.slippageBps) setSlippageBps(config.slippageBps.toString());
+    if (config.amount) setAmount(config.amount.toString());
+    if (config.leverage) setLeverage(config.leverage.toString());
+    if (config.ticker) setTicker(config.ticker);
   }, [config, tokens]);
 
   useEffect(() => {
@@ -121,19 +144,60 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
     return null;
   };
 
-  const handleExecute = async () => {
-    let parsedConfig: Record<string, any> = {};
-    try {
-      parsedConfig = configText.trim() ? JSON.parse(configText) : {};
-      setConfig(parsedConfig);
-    } catch (err: any) {
-      toast({
-        title: 'Invalid config',
-        description: err.message || 'Fix JSON before running',
-        status: 'error',
-      });
-      return;
+  const buildConfigFromInputs = (): Record<string, any> => {
+    const actionType = type as string;
+    const newConfig: Record<string, any> = {};
+
+    // Trade action
+    if (actionType === 'trade') {
+      if (inputAmount) newConfig.inputAmount = parseFloat(inputAmount);
+      if (outputMint) newConfig.outputMint = outputMint;
+      if (inputMint) newConfig.inputMint = inputMint;
+      if (slippageBps) newConfig.slippageBps = parseInt(slippageBps);
     }
+    // Stake actions
+    else if (actionType === 'stakeWithJup' || actionType === 'stakeWithSolayer') {
+      if (amount) newConfig.amount = parseFloat(amount);
+    }
+    // Perp trade actions
+    else if (actionType.includes('PerpTrade') || actionType === 'openPerpTradeLong' || actionType === 'openPerpTradeShort') {
+      if (amount) newConfig.amount = parseFloat(amount);
+      if (leverage) newConfig.leverage = parseInt(leverage);
+    }
+    // Token lookup
+    else if (actionType === 'getTokenAddressFromTicker' || actionType === 'getTokenByTicker') {
+      if (ticker) newConfig.ticker = ticker;
+    }
+    // Default: use JSON if provided
+    else if (configText.trim()) {
+      try {
+        return JSON.parse(configText);
+      } catch {
+        return {};
+      }
+    }
+
+    return newConfig;
+  };
+
+  const handleExecute = async () => {
+    let parsedConfig: Record<string, any> = buildConfigFromInputs();
+    
+    // If JSON textarea has content, try to parse it (for advanced users)
+    if (configText.trim() && Object.keys(parsedConfig).length === 0) {
+      try {
+        parsedConfig = JSON.parse(configText);
+      } catch (err: any) {
+        toast({
+          title: 'Invalid config',
+          description: err.message || 'Fix JSON before running',
+          status: 'error',
+        });
+        return;
+      }
+    }
+    
+    setConfig(parsedConfig);
 
     if (!wallet.connected || !wallet.publicKey) {
       toast({
@@ -260,45 +324,114 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
 
       <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
         <ModalOverlay />
-        <ModalContent bg="bg.200">
-          <ModalHeader color="white">{label}</ModalHeader>
-          <ModalCloseButton />
+        <ModalContent bg="rgba(30, 30, 46, 0.98)" border="1px solid rgba(161, 162, 255, 0.2)">
+          <ModalHeader color="#FFFFFF" fontSize="2rem" fontWeight="700">{label}</ModalHeader>
+          <ModalCloseButton color="#FFFFFF" />
           <ModalBody>
             <VStack align="stretch" spacing={4}>
-              <Text color="gray.200" fontSize="0.9rem">
-                Provide JSON input for this action. Assets linked to this node are available and will be sent as <code>tokens</code> if not overridden.
-              </Text>
-              <Textarea
-                value={configText}
-                onChange={(e) => setConfigText(e.target.value)}
-                minH="220px"
-                fontFamily="monospace"
-              />
-              <Divider />
-              <Text color="gray.300" fontSize="0.9rem">
-                Linked assets: {tokens.length ? tokens.map((t) => t.symbol || t.mint).join(', ') : 'None'}
-              </Text>
+              {tokens.length > 0 && (
+                <Box bg="rgba(161, 162, 255, 0.1)" p="1rem" borderRadius="0.8rem" border="1px solid rgba(161, 162, 255, 0.3)">
+                  <Text color="#B5B6FF" fontSize="0.9rem" fontWeight="600" mb="0.5rem">Linked Assets:</Text>
+                  <Text color="#FFFFFF" fontSize="0.95rem">
+                    {tokens.map((t) => t.symbol || t.mint).join(', ')}
+                  </Text>
+                </Box>
+              )}
+
+              {/* Trade Action Fields */}
+              {(type === 'trade') && (
+                <VStack align="stretch" spacing={3}>
+                  <FormControl>
+                    <FormLabel color="#FFFFFF" fontSize="1rem">Input Amount</FormLabel>
+                    <NumberInput value={inputAmount} onChange={(_, val) => setInputAmount(val.toString())}>
+                      <NumberInputField bg="rgba(255, 255, 255, 0.1)" border="1px solid rgba(161, 162, 255, 0.3)" color="#FFFFFF" _placeholder={{ color: "rgba(255, 255, 255, 0.5)" }} />
+                    </NumberInput>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel color="#FFFFFF" fontSize="1rem">Output Token Mint</FormLabel>
+                    <Input value={outputMint} onChange={(e) => setOutputMint(e.target.value)} placeholder="e.g., EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" bg="rgba(255, 255, 255, 0.1)" border="1px solid rgba(161, 162, 255, 0.3)" color="#FFFFFF" _placeholder={{ color: "rgba(255, 255, 255, 0.5)" }} />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel color="#FFFFFF" fontSize="1rem">Input Token Mint (optional)</FormLabel>
+                    <Input value={inputMint} onChange={(e) => setInputMint(e.target.value)} placeholder="Leave empty to use linked assets" bg="rgba(255, 255, 255, 0.1)" border="1px solid rgba(161, 162, 255, 0.3)" color="#FFFFFF" _placeholder={{ color: "rgba(255, 255, 255, 0.5)" }} />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel color="#FFFFFF" fontSize="1rem">Slippage (basis points)</FormLabel>
+                    <NumberInput value={slippageBps} onChange={(_, val) => setSlippageBps(val.toString())}>
+                      <NumberInputField bg="rgba(255, 255, 255, 0.1)" border="1px solid rgba(161, 162, 255, 0.3)" color="#FFFFFF" />
+                    </NumberInput>
+                  </FormControl>
+                </VStack>
+              )}
+
+              {/* Stake Actions */}
+              {(type === 'stakeWithJup' || type === 'stakeWithSolayer') && (
+                <FormControl>
+                  <FormLabel color="#FFFFFF" fontSize="1rem">Amount</FormLabel>
+                  <NumberInput value={amount} onChange={(_, val) => setAmount(val.toString())}>
+                    <NumberInputField bg="rgba(255, 255, 255, 0.1)" border="1px solid rgba(161, 162, 255, 0.3)" color="#FFFFFF" _placeholder={{ color: "rgba(255, 255, 255, 0.5)" }} />
+                  </NumberInput>
+                </FormControl>
+              )}
+
+              {/* Perp Trade Actions */}
+              {(type.includes('PerpTrade') || type === 'openPerpTradeLong' || type === 'openPerpTradeShort') && (
+                <VStack align="stretch" spacing={3}>
+                  <FormControl>
+                    <FormLabel color="#FFFFFF" fontSize="1rem">Amount</FormLabel>
+                    <NumberInput value={amount} onChange={(_, val) => setAmount(val.toString())}>
+                      <NumberInputField bg="rgba(255, 255, 255, 0.1)" border="1px solid rgba(161, 162, 255, 0.3)" color="#FFFFFF" />
+                    </NumberInput>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel color="#FFFFFF" fontSize="1rem">Leverage</FormLabel>
+                    <NumberInput value={leverage} onChange={(_, val) => setLeverage(val.toString())}>
+                      <NumberInputField bg="rgba(255, 255, 255, 0.1)" border="1px solid rgba(161, 162, 255, 0.3)" color="#FFFFFF" />
+                    </NumberInput>
+                  </FormControl>
+                </VStack>
+              )}
+
+              {/* Token Lookup */}
+              {(type === 'getTokenAddressFromTicker' || type === 'getTokenByTicker') && (
+                <FormControl>
+                  <FormLabel color="#FFFFFF" fontSize="1rem">Ticker Symbol</FormLabel>
+                  <Input value={ticker} onChange={(e) => setTicker(e.target.value)} placeholder="e.g., JUP, USDC" bg="rgba(255, 255, 255, 0.1)" border="1px solid rgba(161, 162, 255, 0.3)" color="#FFFFFF" _placeholder={{ color: "rgba(255, 255, 255, 0.5)" }} />
+                </FormControl>
+              )}
+
+              <Divider borderColor="rgba(161, 162, 255, 0.2)" />
+
+              {/* Advanced JSON Editor */}
+              <Box>
+                <Text color="#B5B6FF" fontSize="0.9rem" fontWeight="600" mb="0.5rem">Advanced: JSON Config</Text>
+                <Textarea
+                  value={configText}
+                  onChange={(e) => setConfigText(e.target.value)}
+                  minH="150px"
+                  fontFamily="monospace"
+                  fontSize="0.9rem"
+                  bg="rgba(0, 0, 0, 0.3)"
+                  border="1px solid rgba(161, 162, 255, 0.3)"
+                  color="#FFFFFF"
+                  _placeholder={{ color: "rgba(255, 255, 255, 0.5)" }}
+                  placeholder='{"custom": "config"}'
+                />
+              </Box>
             </VStack>
           </ModalBody>
           <ModalFooter display="flex" gap="8px">
-            <Button variant="ghost" mr={3} onClick={onClose}>
+            <Button variant="ghost" mr={3} onClick={onClose} color="#FFFFFF">
               Close
             </Button>
             <Button
-              variant="outline"
-              onClick={() => {
-                try {
-                  const parsed = configText.trim() ? JSON.parse(configText) : {};
-                  setConfig(parsed);
-                  toast({ title: 'Config saved', status: 'success', duration: 2000 });
-                } catch (err: any) {
-                  toast({ title: 'Invalid config', description: err.message, status: 'error' });
-                }
-              }}
+              bg="linear-gradient(135deg, #A1A2FF 0%, #7172E8 100%)"
+              color="#FFFFFF"
+              onClick={handleExecute}
+              isLoading={loading}
+              fontWeight="700"
+              _hover={{ transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(161, 162, 255, 0.4)' }}
             >
-              Save
-            </Button>
-            <Button colorScheme="pink" onClick={handleExecute} isLoading={loading}>
               Run Action
             </Button>
           </ModalFooter>
