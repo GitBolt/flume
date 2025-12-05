@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { useReactFlow } from 'reactflow';
 import { Flex, Button, List, ListItem, Text, Box, SimpleGrid, VStack, Image, keyframes } from '@chakra-ui/react'
-import Branding from '@/components/Branding';
 import { ChevronDownIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { SidebarContentType } from '@/types/sidebar';
 import { createNodeId, createNodePos } from '@/util/randomData';
@@ -54,8 +53,7 @@ const Sidebar = ({ sidebarContent }: Props) => {
       pos: "fixed",
       h: "100vh",
       w: "36rem",
-      overflowY: "auto",
-      overflowX: "hidden",
+      top: "6rem",
       zIndex: 2,
     }}>
 
@@ -67,9 +65,10 @@ const Sidebar = ({ sidebarContent }: Props) => {
         boxShadow: "3px 0px 15px rgba(0, 0, 0, 0.36)",
         zIndex: 3,
         borderRadius: "0 5rem 5rem 0",
-        gap: "2rem",
-        justifyContent: 'center',
-
+        overflowY: "auto",
+        overflowX: "hidden",
+        py: "2rem",
+        gap: "1.5rem",
       }}>
         {sidebarContent.map((item) => (
           <Flex
@@ -83,7 +82,7 @@ const Sidebar = ({ sidebarContent }: Props) => {
             key={item.title}
             flexFlow="column"
             align="center"
-            gap="1rem"
+            gap="0.5rem"
             justify="center"
             bg={item.title == selectedItemTitle ? 'bg.400' : 'transparent'}
             boxShadow={item.title == selectedItemTitle ?
@@ -91,10 +90,10 @@ const Sidebar = ({ sidebarContent }: Props) => {
               '-4px -4px 5px rgba(52, 53, 87, 0.25), 4px 4px 5px rgba(0, 0, 0, 0.25)'
             }
           >
-            <Box h="1.8rem" w="1.8rem">
-              <img src={item.icon} style={{ filter: `hue-rotate(350deg)` }} alt="Icon" height="100%" width="100%" />
+            <Box h="3rem" w="3rem" display="flex" alignItems="center" justifyContent="center">
+              <img src={item.icon} alt="Icon" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '0.5rem' }} />
             </Box>
-            <Text color="blue.100" fontWeight={500} fontSize="1.5rem">{item.title}</Text>
+            <Text color="#B5B6FF" fontWeight={600} fontSize="1.2rem" textAlign="center" noOfLines={2}>{item.title}</Text>
           </Flex>
         ))}
       </Flex>
@@ -106,16 +105,18 @@ const Sidebar = ({ sidebarContent }: Props) => {
         borderColor: "gray.100",
         flexFlow: "column",
         height: "100%",
+        overflowY: "auto",
+        overflowX: "hidden",
       }}>
-        <Box mt="8rem" />
-        <Branding />
-        <Flex w="100%" borderRadius="2rem 2rem 0 0" h="4rem" align="center" justify="center" bg="bg.300">
-          <Text color="blue.100" fontWeight={600} fontSize="1.8rem">
-            Actions
-          </Text>
-        </Flex>
+        <Box position="sticky" top="0" bg="bg.100" zIndex={2}>
+          <Flex w="100%" borderRadius="2rem 2rem 0 0" h="4rem" align="center" justify="center" bg="bg.300">
+            <Text color="#FFFFFF" fontWeight={700} fontSize="1.8rem">
+              Actions
+            </Text>
+          </Flex>
+        </Box>
 
-        <Box p="4" flex="1" overflowY="auto">
+        <Box p="4" flex="1">
             <SimpleGrid columns={2} spacing={4}>
             {selectedItemTitle && sidebarContent.find((item) => item.title == selectedItemTitle)!.items.map((item, index) => (
                 <Box
@@ -141,7 +142,7 @@ const Sidebar = ({ sidebarContent }: Props) => {
                         <Box w="12" h="12" bg="bg.400" borderRadius="xl" p="2" display="flex" alignItems="center" justifyContent="center">
                              {item.icon ? <img src={item.icon} alt={item.title} /> : <Box w="100%" h="100%" bg="blue.400" borderRadius="full" />}
                         </Box>
-                        <Text color="white" fontWeight="bold" fontSize="lg" textAlign="center">{item.title}</Text>
+                        <Text color="#FFFFFF" fontWeight="bold" fontSize="lg" textAlign="center">{item.title}</Text>
                         <Button 
                             size="sm" 
                             colorScheme="blue" 
