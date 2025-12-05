@@ -1,0 +1,40 @@
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  font-size: 62.5%;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#__next {
+  height: 100%;
+}
+
+.react-flow {
+  background-color: #14141B;
+}
+
+.react-flow__edge .react-flow__edge-path {
+  stroke: #DD11B1;
+  stroke-width: 2;
+  stroke-opacity: 0.75;
+}
+
+
+.react-flow__handle {
+  width: 10px !important;
+  height: 20px !important;
+  border-radius: 5px !important;
+}
