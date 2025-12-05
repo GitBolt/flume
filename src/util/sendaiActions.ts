@@ -74,6 +74,15 @@ export const getActionLabel = (type: string) =>
   ACTION_DEFINITIONS.find((a) => a.type === type)?.label || type;
 
 /**
+ * Manual mappings for actions where the naming doesn't follow standard conventions
+ */
+const ACTION_NAME_MAPPING: Record<string, string> = {
+  'launchPumpFunToken': 'LAUNCH_PUMPFUN_TOKEN',
+  'claimPumpFunCreatorFee': 'CLAIM_PUMPFUN_CREATOR_FEE',
+  'stakeWithJup': 'STAKE_WITH_JUPITER',
+};
+
+/**
  * Converts camelCase to UPPER_SNAKE_CASE with intelligent handling
  * Automatically handles common patterns like:
  * - Compound words (PumpFun -> PUMPFUN)
@@ -81,6 +90,11 @@ export const getActionLabel = (type: string) =>
  * - Multi-word patterns (stakeWithJup -> STAKE_WITH_JUPITER)
  */
 const camelToUpperSnake = (str: string): string => {
+  // Check manual mapping first
+  if (ACTION_NAME_MAPPING[str]) {
+    return ACTION_NAME_MAPPING[str];
+  }
+  
   // Common abbreviation expansions
   const abbreviations: Record<string, string> = {
     'Jup': 'JUPITER',
@@ -127,6 +141,13 @@ const camelToSnake = (str: string): string => {
  * Uses intelligent matching that handles abbreviations, compounds, and case variations
  */
 const findActionByName = (agent: SolanaAgentKit, type: string) => {
+  // Check manual mapping first
+  const mappedName = ACTION_NAME_MAPPING[type];
+  if (mappedName) {
+    const action = agent.actions.find((a) => a.name === mappedName);
+    if (action) return action;
+  }
+  
   const typeLower = type.toLowerCase();
   const typeUpperSnake = camelToUpperSnake(type);
   const typeSnake = camelToSnake(type);

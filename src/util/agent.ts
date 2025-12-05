@@ -63,8 +63,32 @@ class AdapterWallet implements BaseWallet {
   }
 
   async signAndSendTransaction<T extends Transaction | VersionedTransaction>(tx: T, options?: SendOptions) {
-    const signature = await this.adapter.sendTransaction(tx, this.connection, options);
-    return { signature };
+    try {
+      // For VersionedTransaction, we need to sign first, then send
+      if (tx instanceof VersionedTransaction) {
+        if (!this.adapter.signTransaction) {
+          throw new Error('Wallet does not support signing transactions');
+        }
+        const signed = await this.adapter.signTransaction(tx);
+        const signature = await this.connection.sendRawTransaction(signed.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+          ...options,
+        });
+        return { signature };
+      }
+      
+      // For legacy Transaction, use the adapter's sendTransaction
+      const signature = await this.adapter.sendTransaction(tx, this.connection, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        ...options,
+      });
+      return { signature };
+    } catch (error: any) {
+      console.error('Transaction send error:', error);
+      throw new Error(`Failed to send transaction: ${error.message || 'Unknown error'}`);
+    }
   }
 
   async signMessage(message: Uint8Array): Promise<Uint8Array> {

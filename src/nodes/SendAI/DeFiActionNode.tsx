@@ -45,6 +45,10 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
   const edges = getEdges();
   const hasIncomingEdges = edges.some(edge => edge.target === nodeId);
   const hasOutgoingEdges = edges.some(edge => edge.source === nodeId);
+  
+  // Always show output handle for action nodes so result nodes can connect
+  // The handle will be used when result nodes are created
+  const shouldShowOutputHandle = true; // Always show for action nodes
 
   const [config, setConfig] = useState<Record<string, any>>(() => data?.config || {});
   const [tokens, setTokens] = useState<FlowToken[]>([]);
@@ -309,8 +313,8 @@ const DeFiActionNode: FC<NodeProps> = ({ data, type }) => {
             }}
           />
         )}
-        {/* Only show right handle if node has outgoing edges (not last in flow) */}
-        {hasOutgoingEdges && (
+        {/* Always show output handle for action nodes so result nodes can connect */}
+        {shouldShowOutputHandle && (
           <CustomHandle
             pos="right"
             type="source"

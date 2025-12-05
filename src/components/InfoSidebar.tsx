@@ -9,12 +9,14 @@ import { extractAssetsFromNodeData, FlowToken } from '@/util/assets';
 import { createAgent } from '@/util/agent';
 import { getActionLabel, runSendAIAction, SendAIActionType } from '@/util/sendaiActions';
 import { useToast } from '@chakra-ui/react';
+import { usePortfolio } from '@/context/portfolioContext';
 
 export const InfoSidebar = () => {
   const { getNodes, getEdges, setNodes, setEdges } = useReactFlow();
   const wallet = useWallet();
   const { connection } = useConnection();
   const toast = useToast();
+  const { portfolio } = usePortfolio();
   const [running, setRunning] = useState(false);
 
   const nodes = getNodes();
@@ -91,13 +93,61 @@ export const InfoSidebar = () => {
     return String(data);
   };
 
-  const gatherTokens = (nodeData: Record<string, any>): FlowToken[] => {
+  const gatherTokens = (nodeId: string, nodeData: Record<string, any>): FlowToken[] => {
+    // First, check the node's own data
     const assets = extractAssetsFromNodeData(nodeData || {});
-    return assets.flatMap((asset) => {
+    const nodeTokens = assets.flatMap((asset) => {
       if (asset.kind === 'token') return [asset.token];
       if (asset.kind === 'folder') return asset.tokens;
       return [];
     });
+    
+    // Then, check tokens from connected source nodes via edges
+    const incomingEdges = edges.filter(edge => edge.target === nodeId);
+    const connectedTokens: FlowToken[] = [];
+    
+    incomingEdges.forEach(edge => {
+      const sourceNode = nodes.find(n => n.id === edge.source);
+      if (sourceNode) {
+        // Extract tokens from source node
+        if (sourceNode.type === 'tokenCard' && sourceNode.data) {
+          connectedTokens.push({
+            mint: sourceNode.data.mint,
+            symbol: sourceNode.data.symbol,
+            decimals: sourceNode.data.decimals,
+            amount: sourceNode.data.amount,
+            logo: sourceNode.data.logo,
+            name: sourceNode.data.name,
+          });
+        } else if (sourceNode.type === 'folder' && sourceNode.data?.apps) {
+          // Extract tokens from folder
+          sourceNode.data.apps.forEach((app: any) => {
+            if (app.type === 'tokenCard' && app.data) {
+              connectedTokens.push({
+                mint: app.data.mint,
+                symbol: app.data.symbol,
+                decimals: app.data.decimals,
+                amount: app.data.amount,
+                logo: app.data.logo,
+                name: app.data.name,
+              });
+            }
+          });
+        } else if (sourceNode.type === 'walletBalance' && sourceNode.data) {
+          connectedTokens.push({
+            mint: 'So11111111111111111111111111111111111111112',
+            symbol: 'SOL',
+            decimals: 9,
+            amount: String(sourceNode.data.solana || 0),
+            name: 'Solana',
+            logo: '',
+          });
+        }
+      }
+    });
+    
+    // Combine both sources, prioritizing connected tokens
+    return connectedTokens.length > 0 ? connectedTokens : nodeTokens;
   };
 
   const appendResult = (
@@ -106,42 +156,69 @@ export const InfoSidebar = () => {
     status: 'success' | 'error',
     message: string,
     signature?: string | null,
-    returnData?: any
+    returnData?: any,
+    index?: number // Index for multiple results from same node
   ) => {
     const sourceNode = getNodes().find((n) => n.id === nodeId);
     const pos = sourceNode?.position || { x: 0, y: 0 };
     const resultNodeId = createNodeId();
 
+    // Calculate vertical offset for multiple results (120px spacing)
+    const verticalOffset = index !== undefined ? index * 120 : 0;
+
+    console.log(`Creating result node for ${nodeId}:`, {
+      resultNodeId,
+      label,
+      status,
+      position: { x: pos.x + 260, y: pos.y + verticalOffset },
+      signature,
+      hasReturnData: !!returnData,
+      index
+    });
+
     // Format return data if present
     const formattedData = returnData ? formatReturnData(returnData) : null;
 
-    setNodes((nds) => [
-      ...nds,
-      {
-        id: resultNodeId,
-        type: 'actionResult',
-        position: { x: pos.x + 260, y: pos.y },
-        data: {
-          prompt: label,
-          result: message,
-          status,
-          timestamp: new Date().toISOString(),
-          transactionSignature: signature || null,
-          returnData: formattedData,
-        },
+    const newNode = {
+      id: resultNodeId,
+      type: 'actionResult',
+      position: { x: pos.x + 260, y: pos.y + verticalOffset },
+      data: {
+        prompt: label,
+        result: message,
+        status,
+        timestamp: new Date().toISOString(),
+        transactionSignature: signature || null,
+        returnData: formattedData,
       },
-    ]);
+    };
 
-    setEdges((eds) => [
-      ...eds,
-      {
-        id: `${nodeId}-${resultNodeId}`,
-        source: nodeId,
-        target: resultNodeId,
-        animated: status === 'success',
-        style: { stroke: status === 'success' ? '#92FE9D' : '#FF6B6B', strokeWidth: 2 },
-      },
-    ]);
+    // For action nodes, use the output handle. The handle exists even if not visible yet.
+    const isActionNode = sourceNode?.type && typeof sourceNode.type === 'string' && getActionLabel(sourceNode.type);
+    
+    const newEdge = {
+      id: `${nodeId}-${resultNodeId}`,
+      source: nodeId,
+      ...(isActionNode ? { sourceHandle: 'output' } : {}), // Action nodes have 'output' handle
+      target: resultNodeId,
+      animated: status === 'success',
+      style: { stroke: status === 'success' ? '#92FE9D' : '#FF6B6B', strokeWidth: 2 },
+    };
+
+    console.log('Adding result node:', newNode);
+    console.log('Adding result edge:', newEdge);
+
+    setNodes((nds) => {
+      const updated = [...nds, newNode];
+      console.log(`Total nodes after adding result: ${updated.length}`);
+      return updated;
+    });
+
+    setEdges((eds) => {
+      const updated = [...eds, newEdge];
+      console.log(`Total edges after adding result: ${updated.length}`);
+      return updated;
+    });
   };
 
   const executeFlow = async () => {
@@ -173,30 +250,92 @@ export const InfoSidebar = () => {
 
       for (const node of sortedNodes) {
         const nodeType = node.type as SendAIActionType;
-        const tokens = gatherTokens(node.data || {});
+        const tokens = gatherTokens(node.id, node.data || {});
         const config = node.data?.config || {};
         const label = getActionLabel(nodeType) || 'Action';
 
-        console.log(`Executing node ${node.id}:`, { nodeType, label, config, tokensCount: tokens.length });
+        // For token-based actions, use portfolio tokens if none connected
+        const tokenBasedActions = ['rugcheck', 'fetchPrice', 'getTokenDataByAddress', 'fetchPythPrice'];
+        const isTokenBasedAction = tokenBasedActions.includes(nodeType);
+        
+        // If no tokens connected and it's a token-based action, use portfolio tokens
+        let tokensToUse = tokens;
+        if (isTokenBasedAction && tokens.length === 0 && !config.mint && portfolio?.tokens) {
+          console.log(`Using ${portfolio.tokens.length} portfolio tokens for ${nodeType}`);
+          tokensToUse = portfolio.tokens.map(t => ({
+            mint: t.mint,
+            symbol: t.symbol,
+            decimals: t.decimals,
+            amount: t.amount,
+            logo: t.logo,
+            name: t.name,
+          }));
+        }
 
-        try {
-          const res = await runSendAIAction(nodeType, tokens, config, agent);
-          console.log(`Node ${node.id} result:`, res);
-          const signature = extractSignature(res);
-          const returnData = extractReturnData(res);
-          if (res?.status && res.status !== 'success') {
-            throw new Error(res.message || `${label} returned an error`);
+        console.log(`Executing node ${node.id}:`, { nodeType, label, config, tokensCount: tokensToUse.length, tokens: tokensToUse });
+
+        if (isTokenBasedAction && tokensToUse.length > 0) {
+          // Run action for each token
+          for (let i = 0; i < tokensToUse.length; i++) {
+            const token = tokensToUse[i];
+            const tokenConfig = {
+              ...config,
+              mint: token.mint, // Add mint from token
+            };
+            const tokenLabel = `${label} (${token.symbol || token.mint.slice(0, 8)})`;
+
+            try {
+              const res = await runSendAIAction(nodeType, [token], tokenConfig, agent);
+              console.log(`Node ${node.id} token ${i} result:`, res);
+              const signature = extractSignature(res);
+              const returnData = extractReturnData(res);
+              if (res?.status && res.status !== 'success') {
+                throw new Error(res.message || `${tokenLabel} returned an error`);
+              }
+              // Pass index to offset multiple results vertically
+              appendResult(node.id, tokenLabel, 'success', `${tokenLabel} executed`, signature, returnData, i);
+            } catch (err: any) {
+              console.error(`Node ${node.id} token ${i} error:`, err);
+              // Pass index for error results too
+              appendResult(node.id, tokenLabel, 'error', err.message || 'Failed to execute', null, null, i);
+              toast({
+                title: `${tokenLabel} failed`,
+                description: err.message || 'Failed to execute',
+                status: 'error',
+                duration: 5000,
+              });
+            }
           }
-          appendResult(node.id, label, 'success', `${label} executed`, signature, returnData);
-        } catch (err: any) {
-          console.error(`Node ${node.id} error:`, err);
-          appendResult(node.id, label, 'error', err.message || 'Failed to execute');
+        } else if (isTokenBasedAction && tokensToUse.length === 0 && !config.mint) {
+          // Token-based action without tokens or mint in config
+          appendResult(node.id, label, 'error', 'No tokens connected. Connect tokens or provide mint address in config.');
           toast({
             title: `${label} failed`,
-            description: err.message || 'Failed to execute',
+            description: 'No tokens connected. Connect tokens or provide mint address in config.',
             status: 'error',
             duration: 5000,
           });
+        } else {
+          // Regular action execution (not token-based or has explicit config)
+          try {
+            const res = await runSendAIAction(nodeType, tokensToUse, config, agent);
+            console.log(`Node ${node.id} result:`, res);
+            const signature = extractSignature(res);
+            const returnData = extractReturnData(res);
+            if (res?.status && res.status !== 'success') {
+              throw new Error(res.message || `${label} returned an error`);
+            }
+            appendResult(node.id, label, 'success', `${label} executed`, signature, returnData);
+          } catch (err: any) {
+            console.error(`Node ${node.id} error:`, err);
+            appendResult(node.id, label, 'error', err.message || 'Failed to execute');
+            toast({
+              title: `${label} failed`,
+              description: err.message || 'Failed to execute',
+              status: 'error',
+              duration: 5000,
+            });
+          }
         }
       }
 

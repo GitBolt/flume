@@ -42,7 +42,7 @@ const ConnectWalletButton = () => {
       await connect();
     } catch (e) {
       console.log("Wallet Error: ", e);
-      toast({ status: "info", title: 'A non-critical error occured. Try connecting again.' })
+      // toast({ status: "info", title: 'A non-critical error occured. Try connecting again.' })
     }
   };
 
