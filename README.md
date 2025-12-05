@@ -8,122 +8,101 @@
 
 # Flume
 
+Flume is a visual automation board for Solana. You drop your wallet assets onto a canvas that looks like an iPhone home screen, describe the DeFi sequence you want, and Flume wires the swaps, transfers, stakes, and on-chain checks into a single executable flow.
 
-Flume is a Solana learning playground that lets you explore and build without writing code. Everything now runs locally in the browser: no multiplayer, no cloud saves, no remote database.
 
-## How does it work?
-It provides a user-friendly, no-code environment where users can create nodes for various actions, such as string input, token transfers, fetching token details, generating keypairs, and more. The nodes can be connected to each other to combine and perform various different actions.
+## Product Overview
 
-## Code overview
-This project is built with Next.js and Chakra UI, while the node-based environment utilizes the [React Flow](https://reactflow.dev) library.
-The `src/nodes` folder contains all the nodes that the user can create. Each node is organized into its own file within a subfolder based on the category of actions it performs.
+| Step | What the user sees | What happens under the hood |
+| --- | --- | --- |
+| 1. Connect wallet | Phantom modal, then the canvas fills with icons for SOL, SPL tokens, and NFTs | `/services/moralis.ts` fetches the portfolio and `pages/index.tsx` creates wallet/token/NFT nodes |
+| 2. Organize assets | Drag icons around or drop them onto each other to create folders | Node drag handler merges nodes, stores folder metadata, and keeps Moralis payloads on each node |
+| 3. Describe a flow | Press `Cmd/Ctrl + K` and type natural language instructions | `CommandPalette` sends the prompt + live balances to `pages/api/generate-flow.ts`, which uses GPT‑4o to emit ordered action configs |
+| 4. Run it | Info sidebar highlights connected action nodes; click “Run Flow” | `InfoSidebar` gathers upstream assets, builds a Solana Agent Kit, executes each `SendAIActionType`, and appends animated `ActionResult` nodes |
+
+The core value: everything stays on one canvas. Assets, AI-generated actions, manual tweaks, and execution feedback all live in the same visual context.
+
+## Core Features
+
+- **AI Flow Generator**: `src/components/CommandPalette.tsx` posts prompts plus live balances to `pages/api/generate-flow.ts`, which constrains GPT-4o to the supported `SendAIActionType` list and enforces real numeric calculations (no placeholders).
+- **SendAI Action Nodes**: `src/nodes/SendAI/DeFiActionNode.tsx` renders any action defined in `util/sendaiActions.ts`, surfaces editable configs, detects upstream assets via handles, and runs actions against Solana Agent Kit with automatic result-node fan-out.
+- **Portfolio Canvas**: `pages/index.tsx` + `services/moralis.ts` auto-build wallet, token, and NFT nodes; `nodes/Portfolio/*` handle visuals. Drag-to-folder logic exists inline in the page to mimic iOS behavior.
+- **Flow Execution Surface**: `components/InfoSidebar.tsx` inspects the graph, orders connected action nodes left→right, bundles upstream tokens via `util/assets.ts`, and streams them through `runSendAIAction`. Every run attaches structured feedback (status, signature, return data).
+- **React Flow Editing Enhancements**: `layouts/Playground.tsx` enforces asset payload propagation, custom edge rendering (`NodeEdge`), minimap/controls styling, and `Backspace` protections to avoid accidental asset deletion.
+- **Contextual System**: `_app.tsx` wraps the tree with Wallet, ReactFlow, Theme, Config (network), Portfolio, and Modal providers so data, theming, and AI state remain consistent across components.
+
+## Architecture
+
+| Layer | Responsibility | Key Files |
+| --- | --- | --- |
+| UI Shell | Branding, navbar, sidebars, theme switching | `layouts/Navbar.tsx`, `layouts/Sidebar.tsx`, `components/Branding.tsx`, `components/ThemeSwitcher.tsx` |
+| Canvas Engine | React Flow configuration, custom handles, node registry | `layouts/Playground.tsx`, `layouts/CustomHandle.tsx`, `layouts/NodeEdge.tsx`, `nodes/index.ts` |
+| Node Library | Portfolio nodes (wallet/tokens/NFTs/folders/results) + dynamic SendAI nodes | `src/nodes/Portfolio/*`, `src/nodes/SendAI/DeFiActionNode.tsx` |
+| AI + Automation | Flow generator API, SendAI actions, agent bootstrap, asset extraction helpers | `pages/api/generate-flow.ts`, `util/sendaiActions.ts`, `util/agent.ts`, `util/assets.ts` |
+| Data + State | Moralis integration, contexts for wallet/network/modals/portfolio, helper utils | `services/moralis.ts`, `context/*`, `util/*` |
+
+**Tech Stack**
+
+- Next.js 14 (App Router not in use; classic `pages/` directory).
+- Chakra UI for the component system + theming.
+- React Flow v11 for node/edge orchestration.
+- Solana Agent Kit + plugins (`plugin-token`, `plugin-defi` placeholder) for execution.
+- Moralis Portfolio API for asset discovery.
+- OpenAI GPT-4o via the Vercel AI SDK for natural language flow authoring.
+
+## Node System
+
+| Category | Nodes | Purpose |
+| --- | --- | --- |
+| Portfolio | `walletBalance`, `tokenCard`, `nftCard`, `folder`, `actionResult` | Visualize holdings, group them, and display execution feedback. Wallet + tokens can feed balances into action nodes through custom handles. |
+| SendAI Actions | Generated from `ACTION_DEFINITIONS` (Jupiter, Drift, Solayer, Pump.fun, Sanctum, Solana core, etc.) | Each action type mounts `DeFiActionNode` with a label, emoji, config panel, and run controls. The list is centrally defined so adding a new action is metadata-driven. |
+| Execution Feedback | `ActionResult` nodes | Created on success/failure from both DeFi nodes and InfoSidebar runs; show status badges, timestamps, Solscan links, and optional structured return data. |
+
+**Handles & Data Flow**
+
+- `layouts/CustomHandle.tsx` styles React Flow handles.
+- `buildAssetPayload` converts source nodes into a structured payload (`kind: token/nft/folder`) stored on the target node's `data` keyed by source node id, letting downstream nodes introspect upstream attachments.
+- DeFi nodes read `data[sourceNodeId]` to derive `FlowToken` inputs; InfoSidebar replicates this logic to gather tokens when executing the entire flow sequentially.
+
+## AI Flow Generation
+
+1. User presses `Cmd/Ctrl + K`.
+2. `CommandPalette` collects the prompt and current `portfolioContext`, then calls `/api/generate-flow`.
+3. `generate-flow.ts` assembles a deterministic system prompt containing the supported action catalog, numeric-calculation rules, and token mints, then calls GPT-4o via Vercel AI SDK (`generateText`).
+4. The API strips markdown fences, validates the JSON array, and responds with `steps`.
+5. The palette places the nodes to the right of existing content, connects them with animated edges, and injects each `step.config` into the node data.
+
+## Running a Flow
+
+1. Connect your wallet using the navbar button (Phantom adapter).
+2. Drop asset nodes onto SendAI nodes by drawing edges; the target node records upstream payloads per handle.
+3. Configure any action-specific parameters inside the node body or via the modal.
+4. Open the Info sidebar and click **Run Flow**. The sidebar:
+   - Sorts connected action nodes by `position.x`.
+   - For each node, builds the latest token set (`extractAssetsFromNodeData`).
+   - Creates a Solana Agent Kit instance bound to your adapter wallet + active RPC (`HELIUS_MAINNET_RPC` fallback).
+   - Calls `runSendAIAction`, which picks the right action signature, normalizes config keys, and forwards the request to the agent.
+   - On success/error, appends an `ActionResult` node to the right with animated edges.
 
 ## Getting Started
-Clone this repository and run the following commands:
 
-```sh
+```bash
 yarn install
 yarn dev
 ```
 
+Visit [http://localhost:3000](http://localhost:3000) and connect Phantom (only mainnet RPC is wired by default).
+
 ### Environment Variables
-Create a `.env` file in the root directory with the following variables:
+
+Create `.env.local` (Next automatically loads it) with:
 
 ```
-NEXT_PUBLIC_MORALIS_KEY=your_moralis_api_key_here
-NEXT_PUBLIC_OPENAI_KEY=your_openai_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
+NEXT_PUBLIC_MORALIS_KEY=your_moralis_api_key
+NEXT_PUBLIC_OPENAI_KEY=client_side_openai_key   # used for any client AI helpers
+OPENAI_API_KEY=server_side_openai_key           # used by /api/generate-flow
+NEXT_PUBLIC_DEFAULT_RPC=https://your-rpc.com    # optional, defaults to HELIUS endpoint in util/constants.ts
+NEXT_PUBLIC_JUPITER_REFERRAL_ACCOUNT=optional_jup_referral
+NEXT_PUBLIC_JUPITER_FEE_BPS=0                   # optional referral fee
+NEXT_PUBLIC_PINATA_JWT=optional_pinata_jwt      # used by some agent actions
 ```
-
-- Get your Moralis API key from [https://moralis.io](https://moralis.io)
-- Get your OpenAI API key from [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-
-**Note:** `OPENAI_API_KEY` is used for AI Flow Generation (server-side), while `NEXT_PUBLIC_OPENAI_KEY` is used for folder AI assistant (client-side).
-
-## Wallet Portfolio Feature
-When you connect your wallet, the application automatically fetches and displays all your assets from Solana mainnet using the Moralis API. Your portfolio will be visualized as beautiful, iPhone-style app icons in the playground:
-
-### App Icons
-- **Wallet App**: Displays your native SOL balance
-- **Token Apps**: Each SPL token is shown as a simple app icon with its logo and balance
-- **NFT Apps**: Each NFT is displayed as an app icon with its name
-
-### iPhone-like Features
-- **Grid Layout**: Apps are automatically arranged in a 5-column grid, just like iPhone
-- **Drag to Create Folders**: Drag one app on top of another to automatically create a folder
-  - Drop an app on another app to create a new folder
-  - Drop an app on an existing folder to add it to that folder
-  - Open folders by clicking on them to view all contained apps
-- **AI Assistant for Folders**: Inside each folder, use natural language to control your assets
-  - Type commands like "swap them to USDC" or "send 1 SOL to..."
-  - Powered by OpenAI GPT-4 and Solana Agent Kit
-  - AI automatically creates a result node showing the action status
-  - Result nodes branch out from the folder showing success/error/processing states
-- **Clean Background**: No distracting dots or patterns, just a clean workspace
-- **Smooth Animations**: Hover and drag animations for a native app feel
-
-The apps are automatically arranged when your wallet connects. No manual action required!
-
-## AI Flow Generator
-
-Press **Ctrl+K** (or **Cmd+K** on Mac) to open the AI flow generator and describe what you want to build:
-
-### How It Works
-Simply describe your DeFi workflow in natural language, and the AI will automatically generate the complete flow with all necessary nodes and connections.
-
-**Examples of AI Flow Requests:**
-- "convert 50% of my solana into usdc and lend it on jupiter"
-- "swap 1 SOL to USDC then stake it"
-- "get my balance and swap half to USDT"
-- "buy 100 USDC worth of JUP and stake it"
-- "check SOL price and if it's above 100, swap to USDC"
-
-**Usage:**
-1. Press **Ctrl+K** / **Cmd+K** to open AI generator
-2. Describe your workflow in plain English
-3. Press **Enter** to generate the flow
-4. Review the AI-generated steps
-5. Press **Enter** again or click **"Create Flow 🚀"** to add to canvas
-6. Execute the flow when ready!
-
-**Features:**
-- ✨ Natural language understanding powered by GPT-4o
-- 🔗 Automatically connects nodes with edges
-- ⚡ Supports 90+ DeFi actions across protocols (Jupiter, Adrena, Drift, Raydium, Orca, etc.)
-- 📊 Visual preview of all steps before creating
-- 🎯 Smart parameter detection and configuration
-- 🚀 Single interface - no separate search mode
-
-### AI-Powered Actions
-Each folder has an AI Assistant input field **directly below it on the canvas** (not inside the modal). Simply type what you want to do with your assets:
-
-Examples:
-- "Swap these tokens to USDC"
-- "What can I do with these assets?"
-- "Check the price of these tokens"
-- "Send 0.1 SOL to [address]"
-
-**What happens:**
-1. Type your command in the input field below the folder
-2. Click the → button or press Enter
-3. AI analyzes your request using GPT-4o
-4. A result node appears **connected by an animated edge** to your folder
-5. Success = green animated edge, Error = red static edge
-6. Click "View on Solscan →" to see the transaction on Solscan explorer
-
-### Folder Management
-- **Remove Apps**: Open a folder and click the red × button on any app to remove it
-- **Visual Connections**: Edges automatically connect folders to their action results
-- **Transaction Tracking**: Every successful action includes a Solscan link with the transaction signature
-
-## Terminology
-- **Node**: Individual blocks a user can add to the playground from the sidebar or through Command + K.
-- **Edge**: The curvy magenta coloured line which connects nodes.
-- **Handle**: The points through which an edge emerges or leads to. It can be either of type source (input) or target (output).
-
-## Import Todo
-In the current data sharing model, a node can output data through multiple "output handles". Each output handle is identified by a unique ID that is specific to the handle's node. When a target node wants to receive data from an output handle, it connects its "input handle" to the output handle of the source node. This connection creates an "edge" between the two nodes, which represents the flow of data from the source node to the target node.
-
-When data is sent from the source node to the target node, it is stored in the data attribute of the target node. Specifically, the data is stored as an object with the source node's ID as the key and the output data as the value. For example, if the source node has an ID of "node-1" and it outputs data "1", the data object in the target node would look like this: { "node-1": "1" }.
-
-The problem is when a single source node wants to output multiple values through different output handles, and these values need to be received by a single target node. Since the data object in the target node can only store one value per source node ID, it's not possible to receive multiple values from a single source node using this approach.
