@@ -54,12 +54,13 @@ const Sidebar = ({ sidebarContent }: Props) => {
       h: "100vh",
       w: "36rem",
       top: "6rem",
+      paddingBottom: "6rem",
       zIndex: 2,
     }}>
 
       <Flex sx={{
         w: "25%",
-        bg: "bg.200",
+        bg: "bg.300",
         h: "100%",
         flexFlow: "column",
         boxShadow: "3px 0px 15px rgba(0, 0, 0, 0.36)",
@@ -160,7 +161,7 @@ const Sidebar = ({ sidebarContent }: Props) => {
         </Box>
 
         <Box mt="auto">
-          <ThemeSwitcher />
+          {/* <ThemeSwitcher /> */}
         </Box>
       </Flex>
     </Flex>
